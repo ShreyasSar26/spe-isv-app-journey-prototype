@@ -562,8 +562,9 @@ function appDetailPanel(stage){
   const emailBtn = stage==='reg'
     ? `<button class="btn primary" onclick="adv()">✉ Email app details to owners</button>`
     : `<button class="btn">✉ Email app details to owners</button>`;
-  const publishSection = ready
-    ? `<div class="field"><label>Publish to Microsoft Marketplace</label>
+  let publishSection;
+  if(ready){
+    publishSection = `<div class="field"><label>Publish to Microsoft Marketplace</label>
          <div class="okbar"><b>All prerequisites met — this app is eligible to publish.</b></div>
          <ul class="prereq">
            <li><b>✔</b> Multi-tenant Entra app registered</li>
@@ -573,19 +574,16 @@ function appDetailPanel(stage){
            <li><b>✔</b> App developed & marked <b>Ready</b></li>
          </ul>
          <div class="infobox"><b>Who can publish?</b> Marking Ready → <b>SharePoint Embedded Administrator</b> (no Global Admin needed). Creating the listing → <b>Partner Center</b> role (<b>Publisher / Developer</b>).</div></div>
-       <div class="acts"><button class="btn primary" onclick="adv()">Publish to Marketplace</button></div>`
-    : `<div class="field"><label>Publish to Microsoft Marketplace</label>
-         <div class="warnbar">🔒 <b>Locked.</b> Publishing unlocks once the app is developed and <b>marked Ready</b>. Eligibility is based on a <b>standard (non-trial) container type</b> — not on the app being multi-geo.</div>
-         <ul class="prereq">
-           <li><b>✔</b> Multi-tenant Entra app registered</li>
-           <li><b>✔</b> Standard (non-trial) container type defined (${APP.ctName})</li>
-           <li><b>✔</b> Billing model set (${billingTypeLabel()})${p?'':' + Azure subscription connected'}</li>
-           <li><b>✔</b> Publisher verified</li>
-           <li style="color:#b06a00"><b style="color:#b06a00">◻</b> App developed & marked <b>Ready</b> ${dev?'— pending':'— configure the app first'}</li>
-         </ul></div>
-       <div class="acts">${dev
-          ? `<button class="btn primary" onclick="adv()">Mark app as Ready</button>`
-          : emailBtn}</div>`;
+       <div class="acts"><button class="btn primary" onclick="adv()">Publish to Marketplace</button></div>`;
+  } else if(dev){
+    publishSection = `<div class="field"><label>Lifecycle</label>
+         <div class="kv"><b>State:</b> <span class="warnpill">In development</span></div>
+         <div class="infobox">Mark the app <b>Ready</b> once development and configuration are complete. This makes it eligible to publish to Marketplace (requires a <b>standard, non-trial container type</b> — not multi-geo).</div></div>
+       <div class="acts"><button class="btn primary" onclick="adv()">Mark app as Ready</button></div>`;
+  } else {
+    /* reg — post-create detail panel: no Locked section, no Mark Ready. Just hand-off. */
+    publishSection = `<div class="acts">${emailBtn}</div>`;
+  }
   return `<h2>${APP.name} &nbsp;${statusPill}</h2>
    <div class="ph">Owned app · Publisher: Your org · <b>${p?'Direct-to-customer billed':'Standard'}</b> app</div>
    <div class="field"><label>Entra app ID</label><div class="kv">${APP.entraId} &nbsp;<a class="lnk">Copy ID</a></div></div>
