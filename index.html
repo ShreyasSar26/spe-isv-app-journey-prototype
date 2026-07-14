@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SPE ISV App Journey — Prototype: Fabrikam DocuFlow</title>
+<style>
+  :root{
+    --spe:#0F6CBD; --spe-dark:#0a4d87; --ink:#202a44; --grey:#5a5a5a;
+    --line:#e3e6ea; --bg:#f3f4f6; --ok:#107c41; --rail:#faf9f8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:"Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);
+       display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+  /* ---------- top header ---------- */
+  header.app{background:var(--ink);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px;flex:0 0 auto}
+  header.app .brand{font-weight:700;font-size:15px;letter-spacing:.2px;white-space:nowrap}
+  header.app .brand b{color:#7fc1ff}
+  .phases{display:flex;gap:6px;align-items:center;flex:1 1 auto;flex-wrap:wrap}
+  .pchip{font-size:12px;padding:5px 12px;border-radius:20px;background:#33405e;color:#c7d0e2;white-space:nowrap}
+  .pchip.active{background:var(--spe);color:#fff;font-weight:600}
+  .pchip.done{background:#274;color:#bfe9cf}
+  .legend{font-size:11px;color:#9fb0cf}
+
+  /* ---------- layout ---------- */
+  main{flex:1 1 auto;display:grid;grid-template-columns:248px 1fr 320px;min-height:0}
+  /* journey rail */
+  .rail{background:var(--rail);border-right:1px solid var(--line);overflow:auto;padding:10px 0}
+  .rail .grp{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--grey);
+             padding:12px 16px 4px;font-weight:700}
+  .rail .step{display:flex;gap:10px;align-items:flex-start;padding:7px 14px;cursor:pointer;font-size:12.5px;color:#3a4254}
+  .rail .step:hover{background:#eef1f4}
+  .rail .step .dot{flex:0 0 auto;width:18px;height:18px;border-radius:50%;border:2px solid #c4ccd6;
+                   font-size:10px;line-height:14px;text-align:center;color:#8a93a0;margin-top:1px}
+  .rail .step.active{background:#e8f1fb}
+  .rail .step.active .lbl{color:var(--spe);font-weight:700}
+  .rail .step.active .dot{border-color:var(--spe);color:var(--spe)}
+  .rail .step.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+
+  /* stage */
+  .stagewrap{display:flex;flex-direction:column;min-width:0;background:#dfe2e7}
+  .progress{height:4px;background:#cdd2da;flex:0 0 auto}
+  .progress > i{display:block;height:100%;background:var(--spe);transition:width .25s}
+  .browser{flex:1 1 auto;margin:14px;background:#fff;border-radius:10px;box-shadow:0 6px 22px rgba(20,30,60,.18);
+           display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .chrome{flex:0 0 auto;background:#edf0f3;border-bottom:1px solid #dfe3e8;padding:8px 12px;display:flex;gap:10px;align-items:center}
+  .dots{display:flex;gap:6px}.dots i{width:11px;height:11px;border-radius:50%;display:block}
+  .dots i:nth-child(1){background:#ff5f57}.dots i:nth-child(2){background:#febc2e}.dots i:nth-child(3){background:#28c840}
+  .url{flex:1 1 auto;background:#fff;border:1px solid #d7dce2;border-radius:16px;padding:5px 14px;font-size:12px;color:#43506a;
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .url b{color:var(--ink)}
+  .screen{flex:1 1 auto;overflow:auto;position:relative;background:#fff;display:flex;flex-direction:column}
+  /* make admin-center style surfaces fill the full height of the browser frame */
+  .fullsurface{flex:1 1 auto;display:flex;flex-direction:column;min-height:100%}
+  .fullsurface .adminbody{flex:1 1 auto;display:flex;flex-direction:column;position:relative}
+  .fullsurface .adminbody .adminlayout{flex:1 1 auto}
+  .fullsurface > .content{flex:1 1 auto}
+  .fullsurface .wizfill{flex:1 1 auto;display:flex;flex-direction:column}
+  .fullsurface .wizfill .wizwrap{flex:1 1 auto}
+
+  /* notes panel */
+  .notes{background:#fff;border-left:1px solid var(--line);overflow:auto;padding:18px}
+  .notes h3{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:var(--spe)}
+  .notes .sub{font-size:12px;color:var(--grey);margin-bottom:14px}
+  .notes .card{background:#f3f8fd;border:1px solid #d9e8f6;border-left:4px solid var(--spe);border-radius:8px;
+               padding:12px 13px;font-size:13px;line-height:1.5;margin-bottom:12px}
+  .notes .card.amber{background:#fff8ec;border-color:#f3e2c2;border-left-color:#d98a00}
+  .notes .card.green{background:#eef9f1;border-color:#cdeBD6;border-left-color:var(--ok)}
+  .notes .card b{color:var(--ink)}
+  .kv{font-size:12px;color:#3a4254;margin:2px 0}
+  .kv b{color:var(--ink)}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e8f1fb;color:var(--spe);margin-bottom:8px}
+
+  /* footer nav */
+  footer.nav{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);padding:10px 18px;display:flex;gap:12px;align-items:center}
+  footer.nav .spacer{flex:1 1 auto}
+  .btn{font-family:inherit;font-size:13px;border-radius:6px;border:1px solid #c4ccd6;background:#fff;color:var(--ink);
+       padding:8px 16px;cursor:pointer;font-weight:600}
+  .btn:hover{background:#f3f4f6}
+  .btn.primary{background:var(--spe);border-color:var(--spe);color:#fff}
+  .btn.primary:hover{background:var(--spe-dark)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .counter{font-size:12px;color:var(--grey)}
+
+  /* ===== shared surface bits used inside screens ===== */
+  .mslogo{display:inline-grid;grid-template-columns:1fr 1fr;gap:1.5px;width:18px;height:18px;vertical-align:middle}
+  .mslogo i{display:block}
+  .mslogo i:nth-child(1){background:#F25022}.mslogo i:nth-child(2){background:#7FBA00}
+  .mslogo i:nth-child(3){background:#00A4EF}.mslogo i:nth-child(4){background:#FFB900}
+
+  /* SharePoint / M365 admin surfaces */
+  .adminbar{background:#0b0b0b;color:#fff;padding:9px 16px;font-size:13px;display:flex;align-items:center;gap:10px}
+  .adminbar .ttl{font-weight:600}
+  .adminbar .right{margin-left:auto;display:flex;gap:14px;color:#cfcfcf;font-size:12px;align-items:center}
+  .adminlayout{display:grid;grid-template-columns:210px 1fr}
+  .leftnav{background:#faf9f8;border-right:1px solid #edebe9;padding:8px 0;font-size:13px;min-height:420px}
+  .leftnav .ni{padding:6px 16px;color:#3a3a3a;cursor:default}
+  .leftnav .ni.head{font-weight:600;color:#201f1e}
+  .leftnav .ni.sel{background:#eef1f4;border-left:3px solid var(--spe);color:var(--spe);font-weight:600;padding-left:13px}
+  .leftnav .ni.sub{padding-left:30px;color:#555}
+  .content{padding:22px 26px}
+  .content h1{font-size:22px;margin:0 0 6px}
+  .muted{color:var(--grey);font-size:13px}
+  .lnk{color:var(--spe);text-decoration:none}.lnk:hover{text-decoration:underline}
+  .tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:16px 0 0}
+  .tabs .t{padding:8px 2px;font-size:13px;color:#555;cursor:pointer;border-bottom:2px solid transparent}
+  .tabs .t.on{color:var(--spe);border-color:var(--spe);font-weight:600}
+  table.grid{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+  table.grid th{text-align:left;color:#555;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+  table.grid td{padding:9px 10px;border-bottom:1px solid #f0f1f3}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ok);font-weight:600}
+  .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok)}
+  .av{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--spe);color:#fff;text-align:center;
+      line-height:22px;font-size:11px;font-weight:700}
+  .createbtn{color:var(--spe);font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-top:14px}
+  .createbtn:hover{text-decoration:underline}
+
+  /* slide-out panel */
+  .panel{position:absolute;top:0;right:0;bottom:0;width:430px;background:#fff;box-shadow:-8px 0 26px rgba(0,0,0,.18);
+         padding:20px 22px;overflow:auto;border-left:1px solid var(--line)}
+  .panel h2{font-size:18px;margin:0 0 4px}
+  .panel .ph{font-size:12.5px;color:var(--grey);margin-bottom:16px}
+  .scrim{position:absolute;inset:0;background:rgba(20,25,40,.18)}
+  .field{margin:14px 0}
+  .field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px}
+  .field .desc{font-size:11.5px;color:var(--grey);margin-top:3px}
+  .inp{width:100%;border:1px solid #c4ccd6;border-radius:5px;padding:8px 10px;font-size:13px;font-family:inherit}
+  .radio{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid #d7dce2;border-radius:6px;margin:7px 0;font-size:12.5px}
+  .radio.sel{border-color:var(--spe);background:#f3f8fd}
+  .radio .rb{flex:0 0 auto;width:15px;height:15px;border-radius:50%;border:2px solid #b4bcc8;margin-top:1px}
+  .radio.sel .rb{border-color:var(--spe);background:radial-gradient(var(--spe) 40%,#fff 46%)}
+  .infobox{background:#f3f4f6;border-radius:6px;padding:9px 11px;font-size:11.5px;color:#444;margin:8px 0}
+  .panel .acts{position:sticky;bottom:-20px;background:#fff;padding:14px 0 2px;margin-top:14px;border-top:1px solid var(--line);display:flex;gap:10px}
+
+  /* marketplace surface */
+  .mkbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid #eee;font-size:13px}
+  .mkbar .mk{font-weight:600}.mkbar .sep{color:#bbb}
+  .mkbar .si{margin-left:auto;border:1px solid #d7dce2;border-radius:5px;padding:5px 14px;font-size:12px;color:#333}
+  .hero{background:linear-gradient(120deg,#1b3a8f,#0f6cbd 55%,#5b3a9e);color:#fff;padding:46px 24px;text-align:center}
+  .hero h2{font-size:30px;margin:0 0 8px}
+  .hero p{margin:0 0 18px;opacity:.92;font-size:14px}
+  .search{max-width:520px;margin:0 auto;display:flex;background:#fff;border-radius:6px;overflow:hidden}
+  .search input{flex:1;border:0;padding:11px 14px;font-size:13px;font-family:inherit}
+  .search .go{background:#eee;border:0;padding:0 14px;font-size:13px}
+  .feat{padding:22px 26px}
+  .feat h3{text-align:center;font-size:18px;margin:0 0 14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .pcard{border:1px solid var(--line);border-radius:8px;padding:14px;cursor:pointer;background:#fff}
+  .pcard:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
+  .pcard.hot{border-color:var(--spe);box-shadow:0 0 0 2px #cfe6fa}
+  .pcard .ic{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px}
+  .pcard .nm{font-size:13px;font-weight:600;margin-top:9px}
+  .pcard .by{font-size:11px;color:var(--grey)}
+
+  /* product detail */
+  .pdp{padding:22px 26px;display:grid;grid-template-columns:1fr 230px;gap:22px}
+  .pdp .crumb{font-size:12px;color:var(--grey);margin-bottom:14px;grid-column:1/3}
+  .pdhead{display:flex;gap:18px;align-items:flex-start}
+  .pdhead .ic{width:78px;height:78px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:30px}
+  .pdhead h2{margin:0 0 4px;font-size:22px}
+  .pdmeta{font-size:12.5px;color:var(--grey)}
+  .pdbtns{margin-top:12px;display:flex;gap:10px;align-items:center}
+  .price{font-size:13px;color:#333;align-self:center}
+  .siderail{font-size:11.5px;color:#666;border-left:1px solid var(--line);padding-left:16px;line-height:1.5}
+
+  /* generic modal in marketplace */
+  .mwrap{position:absolute;inset:0;background:rgba(20,25,40,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal{background:#fff;border-radius:8px;max-width:430px;width:100%;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+  .modal h3{margin:0 0 14px;font-size:17px}
+  .modal .close{float:right;color:#888;cursor:default;font-size:16px}
+  .signrow{display:flex;gap:12px;align-items:center;margin:10px 0}
+  .signrow .ic{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+  .consent{font-size:11.5px;color:#555;background:#f6f7f9;border-radius:6px;padding:10px;margin:12px 0;line-height:1.5}
+  .loaddots{display:flex;gap:7px;justify-content:center;margin:16px 0}
+  .loaddots i{width:10px;height:10px;border-radius:50%;background:var(--spe);animation:bl 1s infinite alternate}
+  .loaddots i:nth-child(2){animation-delay:.2s}.loaddots i:nth-child(3){animation-delay:.4s}
+  .loaddots i:nth-child(4){animation-delay:.6s}.loaddots i:nth-child(5){animation-delay:.8s}
+  @keyframes bl{from{opacity:.25}to{opacity:1}}
+
+  /* ISV landing */
+  .isvhero{background:linear-gradient(120deg,#0b2a52,#123a6b);color:#fff;padding:42px 26px;text-align:center}
+  .isvhero .lg{font-size:13px;letter-spacing:1px;opacity:.85;margin-bottom:14px}
+  .isvhero h2{font-size:26px;margin:0 0 6px}.isvhero p{opacity:.9;margin:0}
+  .admins{padding:30px 26px;text-align:center}
+  .admins h3{font-size:18px;margin:0 0 22px}
+  .admincols{display:flex;gap:50px;justify-content:center;flex-wrap:wrap}
+  .admincols .c{max-width:230px}.admincols .c .q{font-weight:600;margin-bottom:10px}
+  .pillbtn{display:inline-block;border-radius:20px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer}
+  .pillbtn.dark{background:#2b2b2b;color:#fff}.pillbtn.dark:hover{background:#000}
+  .pillbtn.lite{background:#fff;border:1px solid #bbb;color:#222}
+
+  /* MAC wizard */
+  .wizwrap{display:grid;grid-template-columns:230px 1fr}
+  .wizsteps{padding:18px 16px;font-size:13px}
+  .wizsteps .ws{display:flex;gap:10px;align-items:center;padding:9px 4px;color:#555}
+  .wizsteps .ws .n{width:18px;height:18px;border-radius:50%;border:2px solid #c4ccd6;font-size:10px;line-height:15px;text-align:center;color:#999}
+  .wizsteps .ws.on{color:var(--spe);font-weight:600}.wizsteps .ws.on .n{border-color:var(--spe);color:var(--spe)}
+  .wizsteps .ws.ok .n{background:var(--ok);border-color:var(--ok);color:#fff}
+  .wizbody{padding:20px 26px;border-left:1px solid var(--line)}
+  .wizbody h2{margin:0 0 4px;font-size:19px;display:flex;align-items:center;gap:10px}
+  .permlist{font-size:12.5px;color:#444;line-height:1.7;margin:12px 0;padding-left:18px}
+  .permlist li.spe{color:var(--spe);font-weight:600}
+
+  /* mode switch + billing surfaces */
+  .modeswitch{display:flex;border:1px solid #33405e;border-radius:20px;overflow:hidden;font-size:11px;margin-left:auto}
+  .modeswitch button{background:#33405e;color:#c7d0e2;border:0;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:11px;white-space:nowrap}
+  .modeswitch button.on{background:var(--spe);color:#fff;font-weight:700}
+  .warnbar{background:#fff4ce;border:1px solid #f2d98e;border-left:4px solid #d98a00;border-radius:6px;padding:11px 13px;font-size:13px;margin:14px 0;line-height:1.5;max-width:640px}
+  .okbar{background:#eef9f1;border:1px solid #cdebd6;border-left:4px solid var(--ok);border-radius:6px;padding:11px 13px;font-size:13px;margin:14px 0;line-height:1.5;max-width:640px}
+  .billcard{border:1px solid var(--line);border-radius:8px;padding:16px;max-width:560px;margin-top:16px;background:#fff}
+  .prereq{list-style:none;padding:0;margin:10px 0;font-size:12.5px}
+  .prereq li{padding:3px 0;color:#3a4254}
+  .prereq li b{color:var(--ok)}
+  .apptag{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;margin-left:8px;vertical-align:middle}
+  .apptag.pass{background:#fdeede;color:#b06a00}
+  .apptag.std{background:#e8f1fb;color:var(--spe)}
+  .warnpill{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#b06a00;font-weight:600}
+  .warnpill::before{content:"";width:8px;height:8px;border-radius:50%;background:#d98a00}
+  .basics{display:flex;gap:40px;margin-top:18px;font-size:12.5px;flex-wrap:wrap}
+  .basics div b{display:block;color:#333}
+  .acceptrow{display:flex;justify-content:flex-end;margin-top:10px}
+  .doneic{width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center;margin:6px auto 14px}
+  .recap{font-size:12.5px;line-height:1.7;color:#444;max-width:560px;margin:0 auto}
+  .recap b{color:var(--ink)}
+  .center{text-align:center}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="brand">SPE ISV App Journey · <b>Prototype</b></div>
+  <div class="phases" id="phases"></div>
+  <div class="modeswitch" id="modeswitch" title="Switch the app's billing model to see how the consuming-tenant install flow changes">
+    <button data-m="passthrough">Direct-to-customer billed</button>
+    <button data-m="standard">Standard (owner-billed)</button>
+  </div>
+  <div class="legend">Fabrikam <b>DocuFlow</b> → Contoso</div>
+</header>
+
+<main>
+  <nav class="rail" id="rail"></nav>
+
+  <section class="stagewrap">
+    <div class="progress"><i id="bar"></i></div>
+    <div class="browser">
+      <div class="chrome">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="url" id="url"></div>
+      </div>
+      <div class="screen" id="screen"></div>
+    </div>
+  </section>
+
+  <aside class="notes" id="notes"></aside>
+</main>
+
+<footer class="nav">
+  <button class="btn" id="back">← Back</button>
+  <button class="btn" id="restart">↺ Restart</button>
+  <div class="spacer"></div>
+  <span class="counter" id="counter"></span>
+  <button class="btn primary" id="next">Next →</button>
+</footer>
+
+<script>
+/* ===================== data ===================== */
+const APP = {
+  isv:"Fabrikam, Inc.", name:"Fabrikam DocuFlow", color:"#0F6CBD",
+  entraName:"Application_SPE_DocuFlow",
+  entraId:"7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  speId:"8d37bd98-90d1-4d8c-822e-ee248fd1a5ab",
+  ctName:"DocuFlow Standard Workspace",
+  ctId:"3a6b8c2e-1f4d-4e9a-bb12-9f0c7d5e1a22",
+  sub:"f65f082d-a073-4451-9a3b-235595ef2cd8",
+  consumer:"Contoso Energy USA", domain:"contosoenergyusa40.onmicrosoft.com",
+  admin:"Alex Wilber", adminUpn:"alexw@contosoenergyusa40.onmicrosoft.com"
+};
+const ic = (sz,fs)=>`<div class="ic" style="background:${APP.color};width:${sz};height:${sz};font-size:${fs}">DF</div>`;
+
+/* phase 1 = Register (owning), 2 = Publish/List (owning), 3 = Discover & Install (consuming) */
+function buildScreens(){
+const pass = isPass();
+const S = [
+/* 0 */ {phase:1, rail:"SharePoint admin center · Owned apps", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; SharePoint Embedded ›  Apps`,
+  body: spacApps(false, null, 1),
+  note: noteCard("tag:Owning tenant — Fabrikam","Where the ISV starts",
+    `<div class="card"><b>The ISV registers its app in its own (owning) tenant.</b> In the SharePoint admin center, <b>SharePoint Embedded → Apps → Owned apps</b> lists every SPE app your org created, regardless of where it is installed.</div>
+     <div class="card"><b>Next action:</b> click <b>+ Create app</b> to register the DocuFlow application and define how it is billed.</div>`),
+  cta:"Click “+ Create app”"},
+
+/* 1 */ {phase:1, rail:"Create app — registration & billing", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › Create app`,
+  body: spacApps(true, createPanelTop()),
+  note: noteCard("tag:Owning tenant — Fabrikam","Register the Entra app",
+    `<div class="card"><b>Create app</b> registers a Microsoft Entra application and creates the matching SharePoint Embedded app in one step.</div>
+     <div class="kv"><b>Entra app name:</b> ${APP.entraName}</div>
+     <div class="card amber"><b>Billing type (cannot be changed later):</b><br><b>User org</b> = the org <i>using</i> the app pays (pay-as-you-go set up by the consuming tenant). This makes it a <b>direct-to-customer billed app</b>. Best for ISV “sell-to-many”.<br><b>Owner org</b> = the developer pays via its own Azure subscription — a <b>standard app</b>. Typical for line-of-business apps.</div>
+     ${pass
+       ? `<div class="card"><b>DocuFlow chooses “User org” (direct-to-customer)</b> so each enterprise owns its own storage consumption cost — at install the consuming admin gets a pay-as-you-go billing step.</div>`
+       : `<div class="card"><b>DocuFlow chooses “Owner org” (standard)</b> so the developer is in charge of billing — the consuming admin has <b>no billing step</b> at install.</div>`}`),
+  cta:"Continue ↓"},
+
+/* 2 */ {phase:1, rail:"Create app — confirm & create", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › Create app`,
+  body: spacApps(true, createPanelBottom()),
+  note: noteCard("tag:Owning tenant — Fabrikam","Billing setup",
+    `${pass
+       ? `<div class="card">Because DocuFlow selected <b>User org</b> billing, <b>Fabrikam sets up no Azure subscription here</b> — the consuming tenant’s admin sets up pay-as-you-go billing when the app is installed.</div>`
+       : `<div class="card">Because DocuFlow selected <b>Owner org</b> billing, <b>Fabrikam connects its own Azure subscription here</b> — the developer is billed for all consumption and the consuming tenant is not.</div>`}
+     <div class="card green"><b>Click “Create app”.</b> This provisions the Entra app + SharePoint Embedded app and assigns the owners.</div>`),
+  cta:"Click “Create app”"},
+
+/* 3 */ {phase:1, rail:"App registered — hand off to developers", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
+  body: spacApps(false, appDetailPanel('reg')),
+  note: noteCard("tag:Owning tenant — Fabrikam","Registered ✔ · In development",
+    `<div class="card green"><b>${APP.name} is registered.</b> It now has an Entra app ID and a SharePoint Embedded app ID, and starts life in an <b>“In development”</b> state — it is <i>not</i> on Marketplace yet.</div>
+     <div class="card"><b>First job of the developer admin:</b> hand the app details to the owners and other developers who will build on it. Use <b>“Email app details to owners”</b> in the detail panel to send the Entra app ID, SPE app ID and container type.</div>
+     <div class="card"><b>Behind the scenes</b>, the ISV also defines a <b>standard container type</b> (“${APP.ctName}”) — the unit that binds the app to its storage, access control and billing, and the identifier that later makes the app eligible for Marketplace.</div>`),
+  cta:"Email app details to owners"},
+
+/* 3b */ {phase:1, rail:"Email app details to owners & developers", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name} › Notify`,
+  body: spacApps(true, emailPanel()),
+  note: noteCard("tag:Owning tenant — Fabrikam","Notify owners & developers",
+    `<div class="card"><b>The developer admin emails the app details</b> to the owners and any other developers so they can start building against the registered app.</div>
+     <div class="kv"><b>Included:</b> Entra app ID, SPE app ID, container type &amp; billing model</div>
+     <div class="card green"><b>Click “Send”.</b> The team can now develop and configure the app.</div>`),
+  cta:"Send & continue — develop the app"},
+
+/* 3c */ {phase:1, rail:"Develop & configure — mark Ready", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
+  body: spacApps(false, appDetailPanel('dev')),
+  note: noteCard("tag:Owning tenant — Fabrikam","Build, then mark Ready",
+    `<div class="card"><b>The developers build and configure the app.</b> While it is “In development”, the <b>Publish to Marketplace</b> action stays <b>locked</b>.</div>
+     <div class="card amber"><b>Publish is gated on the app being marked “Ready”</b> — and eligibility is based on a <b>standard (non-trial) container type</b>, <i>not</i> on the app being multi-geo. Multi-geo is just a property of standard container types (region selection), not the qualifier.</div>
+     <div class="card green"><b>Click “Mark app as Ready”</b> once development is complete.</div>`),
+  cta:"Mark app as Ready"},
+
+/* 3d */ {phase:1, rail:"App Ready — eligible for Marketplace", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
+  body: spacApps(false, appDetailPanel('ready')),
+  note: noteCard("tag:Owning tenant — Fabrikam","Ready ✔ — who can publish?",
+    `<div class="card green"><b>${APP.name} is now “Ready”.</b> All prerequisites are met, so <b>Publish to Marketplace</b> is unlocked.</div>
+     <div class="card"><b>Who can publish?</b> Registering the app and marking it Ready can be done by a <b>SharePoint Embedded Administrator</b> (a Global Administrator is not required). But the listing itself is created in <b>Partner Center</b>, which requires a <b>Partner Center</b> account role (<b>Publisher / Developer / Account admin</b>) — a tenant admin role alone does not grant this.</div>
+     <div class="card"><b>Next:</b> the ISV moves to Partner Center to create and submit the offer.</div>`),
+  cta:"Publish to Marketplace"},
+
+/* 4 */ {phase:2, rail:"Partner Center — list on Marketplace", tab:"Microsoft Partner Center",
+  url:`<b>partner.microsoft.com</b> &nbsp;›&nbsp; Marketplace offers › New SaaS offer`,
+  body: partnerCenter(),
+  note: noteCard("tag:Owning tenant — Fabrikam","Publish the offer",
+    `<div class="card">The ISV creates a <b>SaaS offer</b> in Partner Center and <b>links the same Entra App ID</b> (${APP.entraId}). This lets the Microsoft 365 admin center request consent for exactly this app.</div>
+     <div class="card"><b>Enable admin-deploy</b> so the offer appears in <b>Integrated apps</b>, then submit for certification.</div>
+     <div class="card amber">Once certified and published, the listing is discoverable to <b>every enterprise</b> in Microsoft Marketplace — the heart of the ISV model.</div>`),
+  cta:"Publish to Marketplace"},
+
+/* 5 */ {phase:3, rail:"Microsoft Marketplace — discover", tab:"Microsoft Marketplace",
+  url:`<b>marketplace.microsoft.com</b>`,
+  body: marketplaceLanding(),
+  note: noteCard("tag:Consuming tenant — Contoso","A new enterprise finds the app",
+    `<div class="card"><b>The journey now switches tenants.</b> An admin at <b>${APP.consumer}</b> browses Microsoft Marketplace — “your trusted source for cloud solutions, AI apps, and agents”.</div>
+     <div class="card green"><b>Click the DocuFlow card</b> (highlighted) to open its listing.</div>`),
+  cta:"Open the DocuFlow listing"},
+
+/* 6 */ {phase:3, rail:"Product page — Get it now", tab:"Microsoft Marketplace",
+  url:`<b>marketplace.microsoft.com</b>/product/saas/fabrikam.docuflow`,
+  body: productPage(),
+  note: noteCard("tag:Consuming tenant — Contoso","Review & acquire",
+    `<div class="card">The listing shows publisher, rating, price and an <b>Overview</b> describing DocuFlow’s SharePoint Embedded document workspaces.</div>
+     <div class="card green"><b>Click “Get it now”.</b> The admin begins acquiring the app for the organization.</div>`),
+  cta:"Click “Get it now”"},
+
+/* 7 */ {phase:3, rail:"Confirm details (admin sign-in)", tab:"Microsoft Marketplace",
+  url:`<b>marketplace.microsoft.com</b>/product/saas/fabrikam.docuflow`,
+  body: productPage(confirmModal()),
+  note: noteCard("tag:Consuming tenant — Contoso","Who is consenting",
+    `<div class="kv"><b>Signed in:</b> ${APP.admin}</div>
+     <div class="kv"><b>${APP.adminUpn}</b></div>
+     <div class="card amber"><b>Role:</b> a <b>SharePoint Embedded Administrator</b> is sufficient to authorize the app. With the ongoing LOB-onboarding work this <b>no longer requires a Global Administrator</b>.</div>
+     <div class="card green"><b>Click “Get it now”</b> to continue to deployment.</div>`),
+  cta:"Confirm — “Get it now”"},
+
+/* 8 */ {phase:3, rail:"Redirecting to the ISV", tab:"Microsoft Marketplace",
+  url:`<b>marketplace.microsoft.com</b> &nbsp;…&nbsp; redirecting`,
+  body: productPage(redirectModal()),
+  note: noteCard("tag:Consuming tenant — Contoso","Hand-off to the ISV",
+    `<div class="card">Marketplace hands the admin to the ISV’s own landing page to complete deployment — the same pattern enterprise admins already know from apps like Adobe Acrobat.</div>`),
+  cta:"Continue"},
+
+/* 9 */ {phase:3, rail:"ISV landing — choose deploy", tab:"Fabrikam DocuFlow",
+  url:`<b>docuflow.fabrikam.com</b>/get-started`,
+  body: isvLanding(),
+  note: noteCard("tag:Consuming tenant — Contoso","Deploy for the whole org",
+    `<div class="card">The ISV page offers two paths. To roll DocuFlow out to users org-wide, the admin chooses <b>Microsoft Admin</b>.</div>
+     <div class="card green"><b>Click “Microsoft Admin”</b> — this routes to <b>Integrated apps</b> in the Microsoft 365 admin center.</div>`),
+  cta:"Click “Microsoft Admin”"},
+
+/* 10 */ {phase:3, rail:"Integrated apps — Configuration", tab:"Microsoft 365 admin center",
+  url:`<b>admin.microsoft.com</b> &nbsp;›&nbsp; Settings › Integrated apps › Deploy new app`,
+  body: macWizard(1),
+  note: noteCard("tag:Consuming tenant — Contoso","Deploy new app · 1 of 3",
+    `<div class="card">Integrated apps opens its <b>Deploy new app</b> wizard for <b>${APP.name}</b>.</div>
+     <div class="kv"><b>Assigned users:</b> Everyone in the organization</div>
+     <div class="card">This is the familiar, trusted surface admins use to deploy any Marketplace app — now the single front door for SPE onboarding too.</div>`),
+  cta:"Next →"},
+
+/* 11 */ {phase:3, rail:"Integrated apps — Accept permissions", tab:"Microsoft 365 admin center",
+  url:`<b>admin.microsoft.com</b> &nbsp;›&nbsp; Integrated apps › Deploy new app › Permissions`,
+  body: macWizard(2),
+  note: noteCard("tag:Consuming tenant — Contoso","Deploy new app · 2 of 3",
+    `<div class="card"><b>Accept permissions</b> grants organization-wide admin consent and <b>provisions the app’s service principal</b> in the Contoso tenant.</div>
+     <div class="card amber"><b>SPE prerequisite check:</b> consent covers the Entra side (service principal + Graph scopes incl. <i>FileStorageContainer.Selected</i>) — but it does <b>not</b>, by itself, register the container type. That happens next.</div>
+     <div class="card green"><b>Click “Accept permissions”.</b></div>`),
+  cta:"Accept permissions"},
+
+/* 12 */ {phase:3, rail:"Onboarding completes — container type registered", tab:"Microsoft 365 admin center",
+  url:`<b>admin.microsoft.com</b> &nbsp;›&nbsp; Integrated apps › Deploy new app › Finish`,
+  body: macWizard(3),
+  note: noteCard("tag:Consuming tenant — Contoso","Deploy new app · 3 of 3",
+    `<div class="card green"><b>Onboarding completes inside the same flow</b> — no PowerShell, no out-of-band step.</div>
+     <div class="kv">✔ Service principal provisioned</div>
+     <div class="kv">✔ Admin consent granted (org-wide)</div>
+     <div class="kv">✔ Container type <b>${APP.ctName}</b> registered in Contoso</div>
+     ${pass
+       ? `<div class="card amber"><b>Direct-to-customer billed app:</b> the app is now <b>installed</b>. One <b>post-installation</b> step remains — Contoso's admin sets up <b>pay-as-you-go billing</b> for SharePoint Embedded in the Microsoft 365 admin center. Installing didn't require it, but the app <b>can't be used</b> until billing is enabled.</div>`
+       : `<div class="card green"><b>Standard app:</b> nothing more for Contoso to do. Usage is billed to the <b>developer (owner org)</b>, so there is <b>no billing step</b> and the app is ready to use.</div>`}`),
+  cta: "Finish"},
+
+];
+
+  if(pass){
+    S.push({phase:3, rail:"Installed — action required: billing", tab:"Microsoft 365 admin center",
+      url:`<b>admin.microsoft.com</b> &nbsp;›&nbsp; Settings › Integrated apps › Deployed apps`,
+      body: integratedAppsInstalled(),
+      note: noteCard("tag:Consuming tenant — Contoso","Installed — billing is a post-install step",
+        `<div class="card green"><b>${APP.name} is installed</b> and now appears under <b>Integrated apps → Deployed apps</b> in the Microsoft 365 admin center.</div>
+         <div class="card amber"><b>Direct-to-customer billed app:</b> deployment is done, but the app shows <b>“Action required — set up billing.”</b> Consumption is billed to ${APP.consumer}, so the admin sets up <b>pay-as-you-go billing</b> here in MAC — <b>after installation</b>.</div>
+         <div class="card">Installing didn't require billing, but the app <b>can't be used</b> until it's set up.</div>`),
+      cta:"Set up billing →"});
+
+    BILLING_INDEX = S.length;
+    S.push({phase:3, rail:"Set up pay-as-you-go billing (MAC)", tab:"Microsoft 365 admin center",
+      url:`<b>admin.microsoft.com</b> &nbsp;›&nbsp; Billing › Purchase services › SharePoint Embedded`,
+      body: billingSetup(),
+      note: noteCard("tag:Consuming tenant — Contoso","Post-install billing · Microsoft 365 admin center",
+        `<div class="card amber"><b>${APP.name} is a direct-to-customer billed app.</b> Storage consumption is billed to <b>${APP.consumer}</b>, so the admin enables <b>pay-as-you-go billing</b> for SharePoint Embedded in the Microsoft 365 admin center — a <b>post-installation</b> step.</div>
+         <div class="card">Attach an Azure subscription, then <b>Set up billing</b>. Or <b>Skip for now</b> and return via the app's “Action required” prompt.</div>
+         <div class="card"><b>Standard apps skip this entirely</b> — try the header toggle to compare.</div>`),
+      cta: billingSet ? "Continue →" : "Set up billing"});
+  } else {
+    BILLING_INDEX = -1;
+  }
+
+  S.push({phase:3, rail: (pass && !billingSet) ? "Installed — billing required to use" : "Installed — DocuFlow is live", tab:"Done",
+    url:`<b>docuflow.fabrikam.com</b> · installed in ${APP.consumer}`,
+    body: doneScreen(),
+    note: doneNote(),
+    cta:"↺ Restart prototype"});
+
+  return S;
+}
+
+const PHASE_LABELS = ["1 · Register (owning tenant)","2 · List on Marketplace","3 · Discover & install (consuming tenant)"];
+
+/* ===================== screen builders ===================== */
+function adminShell(sel, inner, panel){
+  return `
+  <div class="fullsurface">
+  <div class="adminbar"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="ttl">SharePoint admin center</span>
+    <span class="right"><span>Copilot</span><span>⚙</span><span>?</span><span class="av">F</span></span></div>
+  <div class="adminbody">
+    <div class="adminlayout">
+      <div class="leftnav">
+        <div class="ni">Home</div>
+        <div class="ni head">Sites</div>
+        <div class="ni head" style="color:var(--spe)">SharePoint Embedded</div>
+        <div class="ni sub ${sel==='apps'?'sel':''}" ${sel==='apps'?'style="margin-left:0"':''}>Apps</div>
+        <div class="ni sub">Active containers</div>
+        <div class="ni sub">Archived containers</div>
+        <div class="ni sub">Deleted containers</div>
+        <div class="ni head">Backup</div>
+        <div class="ni head">Policies</div>
+        <div class="ni head">Settings</div>
+        <div class="ni head">Reports</div>
+      </div>
+      <div class="content">${inner}</div>
+    </div>
+    ${panel?`<div class="scrim"></div><div class="panel">${panel}</div>`:""}
+  </div>
+  </div>`;
+}
+
+function spacApps(withScrim, panel, createTarget){
+  const rows = [
+    ["ABC","Your org","User org","Active"],
+    ["XYZ","Your org","Owner org","Active"],
+    ["Application_SPE_0024","External org","User org","Active"],
+    ["Northwind Vault","External org","Owner org","Active"]
+  ];
+  const isNew = panel && panel.indexOf("Create app")>-1;
+  const detail = panel && panel.indexOf("Entra app ID")>-1;
+  if(detail){ rows.unshift([APP.name,"Your org",billingTypeLabel(),"Active",true]); }
+  const inner = `
+    <h1>Apps</h1>
+    <div class="muted">Install, set up, and manage your SharePoint Embedded apps. <a class="lnk">Learn more</a></div>
+    <div class="tabs"><div class="t">Installed apps</div><div class="t on">Owned apps</div></div>
+    <div class="muted" style="margin-top:10px">SharePoint Embedded apps created by your org, regardless of installation status.</div>
+    <div class="createbtn" ${createTarget!=null?`onclick="adv()"`:""}>＋ Create app</div>
+    <table class="grid">
+      <tr><th>App name</th><th>Publisher</th><th>Billing type</th><th>Owners</th><th>Status</th></tr>
+      ${rows.map(r=>`<tr ${r[4]?'style="background:#f3f8fd"':''}>
+        <td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td>
+        <td><span class="av">${r[0][0]}</span></td><td><span class="pill">${r[3]}</span></td></tr>`).join("")}
+    </table>`;
+  return adminShell('apps', inner, panel);
+}
+
+function createPanelTop(){
+  const p = isPass();
+  return `<h2>Create app</h2>
+   <div class="ph">Register a Microsoft Entra app to create a SharePoint Embedded app. Set up billing and assign app owners.</div>
+   <div class="field"><label>Entra app registration</label>
+     <div class="radio sel"><span class="rb"></span><div><b>New app</b></div></div>
+     <div class="radio"><span class="rb"></span><div>Use an existing Entra app</div></div></div>
+   <div class="field"><label>New Entra app name *</label>
+     <input class="inp" value="${APP.entraName}"></div>
+   <div class="field"><label>Owners <span style="font-weight:400;color:#888">— add up to 3</span></label>
+     <input class="inp" value="Alex Admin ✕      Add owners"></div>
+   <div class="field"><label>Billing type</label>
+     <div class="desc">Select a billing type for app usage. This setting can’t be changed later.</div>
+     <div class="infobox">Select <b>Owner org</b> if you (the developer) will set up billing — a <b>standard app</b>. Select <b>User org</b> to bill the using org via pay-as-you-go — a <b>direct-to-customer billed app</b>.</div>
+     <div class="radio ${p?'sel':''}"><span class="rb"></span><div><b>User org</b> <span class="apptag pass">Direct-to-customer</span><br><span style="color:#666">App usage is billed to the org using the app. An admin in the user org sets up pay-as-you-go billing for SharePoint Embedded.</span></div></div>
+     <div class="radio ${p?'':'sel'}"><span class="rb"></span><div><b>Owner org</b> <span class="apptag std">Standard</span><br><span style="color:#666">App usage is billed to the org that owns the app. The developer connects an Azure billing subscription.</span></div></div></div>
+   <div class="acts"><button class="btn primary" onclick="adv()">Create app</button><button class="btn">Close</button></div>`;
+}
+function createPanelBottom(){
+  const p = isPass();
+  return `<h2>Create app</h2>
+   <div class="ph">Register a Microsoft Entra app to create a SharePoint Embedded app. Set up billing and assign app owners.</div>
+   <div class="field"><label>Owners</label><input class="inp" value="Alex Admin ✕     Clear all ✕"></div>
+   <div class="field"><label>Billing type *</label>
+     <div class="radio ${p?'sel':''}"><span class="rb"></span><div><b>User org</b> — app usage is billed to the org using the app.</div></div>
+     <div class="radio ${p?'':'sel'}"><span class="rb"></span><div><b>Owner org</b> — app usage is billed to the developer.</div></div></div>
+   ${p
+     ? `<div class="infobox"><b>User org selected (direct-to-customer).</b> No Azure subscription is set up in your (owning) tenant — the using organization sets up pay-as-you-go billing for SharePoint Embedded in its Microsoft 365 admin center.</div>`
+     : `<div class="field"><label>Azure billing subscription *</label>
+          <input class="inp" value="Fabrikam-Production  ·  f65f082d-a073-4451-…"></div>
+        <div class="infobox"><b>Owner org selected (standard).</b> Consumption is billed to the developer’s Azure subscription connected above. The using organization is not billed.</div>`}
+   <div class="field"><label>▸ Advanced settings</label></div>
+   <div class="acts"><button class="btn primary" onclick="adv()">Create app</button><button class="btn">Close</button></div>`;
+}
+function appDetailPanel(stage){
+  const p = isPass();
+  stage = stage || 'reg';
+  const ready = stage==='ready';
+  const dev = stage==='dev';
+  const statusPill = ready ? `<span class="pill">Ready</span>` : `<span class="warnpill">In development</span>`;
+  const emailBtn = stage==='reg'
+    ? `<button class="btn primary" onclick="adv()">✉ Email app details to owners</button>`
+    : `<button class="btn">✉ Email app details to owners</button>`;
+  const publishSection = ready
+    ? `<div class="field"><label>Publish to Microsoft Marketplace</label>
+         <div class="okbar"><b>All prerequisites met — this app is eligible to publish.</b></div>
+         <ul class="prereq">
+           <li><b>✔</b> Multi-tenant Entra app registered</li>
+           <li><b>✔</b> Standard (non-trial) container type defined (${APP.ctName})</li>
+           <li><b>✔</b> Billing model set (${billingTypeLabel()})${p?'':' + Azure subscription connected'}</li>
+           <li><b>✔</b> Publisher verified</li>
+           <li><b>✔</b> App developed & marked <b>Ready</b></li>
+         </ul>
+         <div class="infobox"><b>Who can publish?</b> Marking Ready → <b>SharePoint Embedded Administrator</b> (no Global Admin needed). Creating the listing → <b>Partner Center</b> role (<b>Publisher / Developer</b>).</div></div>
+       <div class="acts"><button class="btn primary" onclick="adv()">Publish to Marketplace</button></div>`
+    : `<div class="field"><label>Publish to Microsoft Marketplace</label>
+         <div class="warnbar">🔒 <b>Locked.</b> Publishing unlocks once the app is developed and <b>marked Ready</b>. Eligibility is based on a <b>standard (non-trial) container type</b> — not on the app being multi-geo.</div>
+         <ul class="prereq">
+           <li><b>✔</b> Multi-tenant Entra app registered</li>
+           <li><b>✔</b> Standard (non-trial) container type defined (${APP.ctName})</li>
+           <li><b>✔</b> Billing model set (${billingTypeLabel()})${p?'':' + Azure subscription connected'}</li>
+           <li><b>✔</b> Publisher verified</li>
+           <li style="color:#b06a00"><b style="color:#b06a00">◻</b> App developed & marked <b>Ready</b> ${dev?'— pending':'— configure the app first'}</li>
+         </ul></div>
+       <div class="acts">${dev
+          ? `<button class="btn primary" onclick="adv()">Mark app as Ready</button>`
+          : emailBtn}</div>`;
+  return `<h2>${APP.name} &nbsp;${statusPill}</h2>
+   <div class="ph">Owned app · Publisher: Your org · <b>${p?'Direct-to-customer billed':'Standard'}</b> app</div>
+   <div class="field"><label>Entra app ID</label><div class="kv">${APP.entraId} &nbsp;<a class="lnk">Copy ID</a></div></div>
+   <div class="field"><label>SharePoint Embedded app ID</label><div class="kv">${APP.speId} &nbsp;<a class="lnk">Copy ID</a></div></div>
+   <div class="field"><label>Container type</label>
+     <div class="kv"><b>${APP.ctName}</b> <span class="apptag std">Standard</span></div>
+     <div class="kv" style="color:#888">${APP.ctId}</div></div>
+   <div class="field"><label>Owners &amp; developers</label>
+     <div class="kv">Alex Admin (owner) · +2 developers</div>
+     <div class="infobox">Hand off the app so owners and other developers can build on it — email them the Entra app ID, SPE app ID, container type and billing model.</div>
+     ${stage==='reg' ? '' : emailBtn}</div>
+   <div class="field"><label>Billing</label>
+     <div class="kv"><b>Billing type:</b> ${billingTypeLabel()} ${p?'(direct-to-customer)':'(standard)'}</div>
+     <div class="kv"><b>Azure subscription:</b> ${p?'— (set up by the using org)':'Fabrikam-Production (developer-owned)'}</div></div>
+   ${publishSection}`;
+}
+function emailPanel(){
+  return `<h2>Notify owners &amp; developers</h2>
+   <div class="ph">Email the app details to everyone building on ${APP.name}.</div>
+   <div class="field"><label>To</label><input class="inp" value="dev-team@fabrikam.com;  owners@fabrikam.com"></div>
+   <div class="field"><label>Subject</label><input class="inp" value="${APP.name} — SharePoint Embedded app details"></div>
+   <div class="field"><label>Message</label>
+     <div class="infobox" style="text-align:left;line-height:1.7">
+       Hi team,<br><br>The <b>${APP.name}</b> SharePoint Embedded app is registered. Use these details to start building:<br>
+       • <b>Entra app ID:</b> ${APP.entraId}<br>
+       • <b>SharePoint Embedded app ID:</b> ${APP.speId}<br>
+       • <b>Container type:</b> ${APP.ctName} (${APP.ctId})<br>
+       • <b>Billing model:</b> ${billingTypeLabel()} ${isPass()?'(direct-to-customer)':'(standard)'}<br><br>
+       Once development is complete we'll mark it <b>Ready</b> and publish to Marketplace.
+     </div></div>
+   <div class="acts"><button class="btn primary" onclick="adv()">Send</button><button class="btn">Cancel</button></div>`;
+}
+
+function partnerCenter(){
+  return `
+  <div class="fullsurface">
+  <div class="adminbar" style="background:#13123b"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="ttl">Microsoft Partner Center</span><span class="right"><span class="av">F</span></span></div>
+  <div class="content">
+    <div class="muted">Marketplace offers › New offer</div>
+    <h1>New SaaS offer — ${APP.name}</h1>
+    <div class="field" style="max-width:560px"><label>Offer name</label><input class="inp" value="${APP.name}"></div>
+    <div class="field" style="max-width:560px"><label>Microsoft Entra App ID (for Microsoft Graph / SharePoint Embedded)</label><input class="inp" value="${APP.entraId}"></div>
+    <div class="field" style="max-width:560px"><label>Plans</label><input class="inp" value="DocuFlow — Standard (Free trial → pay-as-you-go storage)"></div>
+    <div class="radio sel" style="max-width:560px"><span class="rb"></span><div><b>Enable in Integrated apps</b> — allow Microsoft 365 admins to deploy this app org-wide</div></div>
+    <div class="infobox" style="max-width:560px">Listing also surfaces in AppSource. Linked add-ins (Teams/Office) can be deployed in the same pass.</div>
+    <div style="margin-top:18px"><button class="btn primary" onclick="adv()">Publish to Microsoft Marketplace</button>
+      <button class="btn">Save draft</button></div>
+  </div>
+  </div>`;
+}
+
+function marketplaceLanding(){
+  const cards = [
+    ["UiPath","#fa4616","UiPath Agentic"],["Canva","#00c4cc","Canva"],
+    [APP.name,APP.color,"by "+APP.isv,true],["Veeam","#00b336","Veeam Data Cloud"],
+    ["Presentations AI","#5b3a9e","Presentations AI"]
+  ];
+  return `
+  <div class="mkbar"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="mk">Marketplace</span><span class="sep">|</span>
+    <span class="muted">All · Products · Categories · Industries · Partners</span>
+    <span class="si">Sign in</span></div>
+  <div class="hero"><h2>Microsoft Marketplace</h2>
+    <p>Your trusted source for cloud solutions, AI apps, and agents</p>
+    <div class="search"><input value="DocuFlow"><button class="go">🔍</button></div></div>
+  <div class="feat"><h3>Results for “DocuFlow”</h3>
+    <div class="cards">
+      ${cards.map((c,i)=>`<div class="pcard ${c[3]?'hot':''}" ${c[3]?'onclick="adv()"':''}>
+        <div class="ic" style="background:${c[1]}">${c[0][0]}</div>
+        <div class="nm">${c[0]}</div><div class="by">${c[2]}</div></div>`).join("")}
+    </div></div>`;
+}
+
+function productPage(modal){
+  return `
+  <div class="mkbar"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="mk">Marketplace</span><span class="si">Sign in</span></div>
+  <div style="position:relative">
+  <div class="pdp">
+    <div class="crumb">Products › ${APP.name}</div>
+    <div>
+      <div class="pdhead">
+        <div class="ic" style="background:${APP.color}">DF</div>
+        <div><h2>${APP.name}</h2>
+          <div class="pdmeta">by ${APP.isv} &nbsp;·&nbsp; ☁ SaaS &nbsp;·&nbsp; <span class="apptag ${isPass()?'pass':'std'}">${isPass()?'Direct-to-customer billed':'Standard'}</span></div>
+          <div class="pdmeta">★ 4.7 (1,284 ratings)</div>
+          <div class="pdbtns"><span class="price">Starts at <b>Free</b></span>
+            <button class="btn primary" onclick="adv()">Get it now</button></div>
+        </div>
+      </div>
+      <div class="tabs"><div class="t on">Overview</div><div class="t">Ratings + reviews</div><div class="t">Details + support</div></div>
+      <p class="muted" style="line-height:1.6;margin-top:14px">
+        <b>Secure document workspaces, built on SharePoint Embedded.</b> DocuFlow gives every team a
+        governed, high-trust workspace for contracts, drawings and records — stored in your own Microsoft 365
+        tenant via SharePoint Embedded containers, with enterprise search, Copilot and compliance built in.
+        Deploy org-wide from the Microsoft 365 admin center in minutes.</p>
+    </div>
+    <div class="siderail">By getting this product, I give Microsoft permission to use or share my account
+      information so that the provider can contact me regarding this product. Use of Marketplace is governed
+      by separate terms and privacy.</div>
+  </div>
+  ${modal||""}
+  </div>`;
+}
+function confirmModal(){
+  return `<div class="mwrap"><div class="modal">
+    <span class="close">✕</span><h3>Confirm your details to continue</h3>
+    <div class="signrow"><div class="ic" style="background:${APP.color}">DF</div>
+      <div><b>${APP.name}</b><br><span class="muted">By ${APP.isv}</span></div></div>
+    <div class="muted">You're signed in as <b>${APP.admin}</b><br>(${APP.adminUpn}). <a class="lnk">Edit your details</a></div>
+    <div class="consent">By clicking <b>Get it now</b>, I give Microsoft permission to use or share my account
+      information so the provider can contact me. I agree to the provider's terms of use and privacy policy.</div>
+    <div style="text-align:right"><button class="btn primary" onclick="adv()">Get it now</button></div>
+  </div></div>`;
+}
+function redirectModal(){
+  return `<div class="mwrap"><div class="modal center">
+    <h3 style="text-align:left">Taking you to ${APP.name} to complete this process</h3>
+    <div class="loaddots"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="ic" style="background:${APP.color};width:54px;height:54px;font-size:22px;margin:6px auto 0">DF</div>
+    <div style="margin-top:16px"><button class="btn primary" onclick="adv()">Continue</button></div>
+  </div></div>`;
+}
+
+function isvLanding(){
+  return `
+  <div class="isvhero"><div class="lg">${APP.isv.toUpperCase()}</div>
+    <h2>${APP.name}</h2><p>Do more with your documents — workspaces built right into Microsoft 365</p></div>
+  <div class="admins"><h3>Administrators</h3>
+    <div class="admincols">
+      <div class="c"><div class="q">Need licenses?</div><span class="pillbtn lite">Buy now</span></div>
+      <div class="c"><div class="q">Want to deploy ${APP.name} for your users?</div>
+        <span class="pillbtn dark" onclick="adv()">Microsoft Admin</span></div>
+    </div>
+    <p class="muted" style="margin-top:26px">Not an administrator? Install ${APP.name} for yourself.</p>
+  </div>`;
+}
+
+function macWizard(step){
+  const steps = [["Configuration",1],["Deployment",2],["Permissions",2],["Finish",3]];
+  const body =
+    step===1 ? `
+      <h2>${ic('30px','13px')} App to deploy</h2>
+      <div style="font-size:14px;font-weight:600;margin:6px 0 2px">${APP.name}</div>
+      <p class="muted" style="max-width:560px">Give every team a secure, governed document workspace built on
+        SharePoint Embedded. Deploy org-wide and assign users in a few steps.</p>
+      <div style="margin-top:18px"><b style="font-size:13px">Assigned users</b>
+        <div class="radio sel" style="max-width:420px"><span class="rb"></span><div>Everyone in the organization</div></div>
+        <div class="radio" style="max-width:420px"><span class="rb"></span><div>Specific users / groups</div></div></div>
+      <div style="margin-top:22px"><button class="btn primary" onclick="adv()">Next</button>
+        <button class="btn">Cancel</button></div>`
+    : step===2 ? `
+      <h2>${ic('30px','13px')} App permissions and capabilities</h2>
+      <p class="muted">Review the access this app needs, then grant organization-wide admin consent.</p>
+      <ul class="permlist">
+        <li class="spe">SharePoint Embedded — FileStorageContainer.Selected: create &amp; manage DocuFlow containers</li>
+        <li>Sign in and read the user's profile</li>
+        <li>Read the organization's basic profile</li>
+        <li>Read and write files the app creates in containers</li>
+        <li>Send service notifications on the user's behalf</li>
+      </ul>
+      <div class="acceptrow"><button class="btn primary" onclick="adv()">Accept permissions</button></div>
+      <div class="basics"><div><b>App publisher</b>${APP.isv}</div>
+        <div><b>App domain</b>docuflow.fabrikam.com</div>
+        <div><b>Users</b>Entire organization</div></div>`
+    : `
+      <h2 style="color:var(--ok)">✔ ${APP.name} deployed</h2>
+      <p class="muted">Admin consent granted and the app is being rolled out to <b>Everyone in the organization</b>.${isPass()?' One step remains before the app can be used.':''}</p>
+      <ul class="permlist" style="list-style:none;padding-left:0">
+        <li>✔ Service principal provisioned in ${APP.consumer}</li>
+        <li>✔ Organization-wide admin consent granted</li>
+        <li class="spe">✔ Container type “${APP.ctName}” registered in this tenant</li>
+        ${isPass()
+          ? `<li style="color:#b06a00">⏳ Pay-as-you-go billing for SharePoint Embedded — required (direct-to-customer billed app)</li>`
+          : `<li>✔ No billing setup needed — usage is billed to the developer (owner org)</li>`}
+      </ul>
+      ${isPass()
+        ? `<div class="warnbar">This is a <b>direct-to-customer billed app</b>. The app is now <b>installed</b>, but <b>${APP.name} can’t be used until pay-as-you-go billing for SharePoint Embedded is set up</b> — a post-installation step in the Microsoft 365 admin center.</div>
+           <div style="margin-top:16px"><button class="btn primary" onclick="adv()">Finish</button></div>`
+        : `<div class="okbar"><b>Standard app.</b> The developer (${APP.isv}) is in charge of billing, so ${APP.consumer} has no billing step — the app is ready to use.</div>
+           <div style="margin-top:16px"><button class="btn primary" onclick="adv()">Finish</button></div>`}`;
+  return `
+  <div class="fullsurface">
+  <div class="adminbar" style="background:#252423"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="ttl">Microsoft 365 admin center</span>
+    <span class="right"><span>Search</span><span class="av">A</span></span></div>
+  <div class="content wizfill" style="padding:0">
+    <div style="padding:14px 22px 0"><div class="muted">Home › Integrated apps › <b>Deploy new app</b></div></div>
+    <div class="wizwrap">
+      <div class="wizsteps">
+        ${steps.map(s=>`<div class="ws ${s[1]===step?'on':(s[1]<step?'ok':'')}"><span class="n">${s[1]<step?'✓':''}</span>${s[0]}</div>`).join("")}
+      </div>
+      <div class="wizbody">${body}</div>
+    </div>
+  </div>
+  </div>`;
+}
+
+function integratedAppsInstalled(){
+  return `
+  <div class="fullsurface">
+  <div class="adminbar" style="background:#252423"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="ttl">Microsoft 365 admin center</span>
+    <span class="right"><span>Search</span><span class="av">A</span></span></div>
+  <div class="adminbody">
+    <div class="adminlayout">
+      <div class="leftnav">
+        <div class="ni">Home</div>
+        <div class="ni head">Users</div>
+        <div class="ni head">Teams &amp; groups</div>
+        <div class="ni head">Billing</div>
+        <div class="ni head" style="color:var(--spe)">Settings</div>
+        <div class="ni sub sel" style="margin-left:0">Integrated apps</div>
+        <div class="ni sub">Domains</div>
+        <div class="ni sub">Search &amp; intelligence</div>
+        <div class="ni head">Setup</div>
+        <div class="ni head">Reports</div>
+      </div>
+      <div class="content">
+        <div class="muted">Home › Settings › Integrated apps</div>
+        <h1>Integrated apps</h1>
+        <div class="muted">Manage the apps deployed across your organization. <a class="lnk">Learn more</a></div>
+        <div class="tabs"><div class="t on">Deployed apps</div><div class="t">Available apps</div><div class="t">Requested apps</div></div>
+        <table class="grid">
+          <tr><th>Name</th><th>Status</th><th>Assigned users</th><th>Publisher</th></tr>
+          <tr style="background:#fff8ec">
+            <td><b>${APP.name}</b></td>
+            <td><span class="warnpill">Action required — set up billing</span></td>
+            <td>Entire organization</td><td>${APP.isv}</td></tr>
+          <tr><td><b>Adobe Acrobat for Microsoft 365</b></td><td><span class="pill">Active</span></td><td>Entire organization</td><td>Adobe</td></tr>
+          <tr><td><b>Contoso Connector</b></td><td><span class="pill">Active</span></td><td>Selected groups</td><td>Contoso</td></tr>
+        </table>
+        <div class="warnbar" style="margin-top:20px">⚠ <b>${APP.name} is installed but not yet usable.</b> This <b>direct-to-customer billed app</b> bills consumption to ${APP.consumer}, so an admin must <b>set up pay-as-you-go billing for SharePoint Embedded</b> — a post-installation step.
+          <div style="margin-top:10px"><button class="btn primary" onclick="adv()">Set up billing</button></div></div>
+      </div>
+    </div>
+  </div>
+  </div>`;
+}
+
+function billingSetup(){
+  return `
+  <div class="fullsurface">
+  <div class="adminbar" style="background:#252423"><span class="mslogo"><i></i><i></i><i></i><i></i></span>
+    <span class="ttl">Microsoft 365 admin center</span>
+    <span class="right"><span>Search</span><span class="av">A</span></span></div>
+  <div class="adminbody">
+    <div class="adminlayout">
+      <div class="leftnav">
+        <div class="ni">Home</div>
+        <div class="ni head">Users</div>
+        <div class="ni head" style="color:var(--spe)">Billing</div>
+        <div class="ni sub sel" style="margin-left:0">Purchase services</div>
+        <div class="ni sub">Your products</div>
+        <div class="ni sub">Bills &amp; payments</div>
+        <div class="ni sub">Billing accounts</div>
+        <div class="ni head">Settings</div>
+        <div class="ni sub">Integrated apps</div>
+        <div class="ni head">Setup</div>
+      </div>
+      <div class="content">
+        <div class="muted">Home › Billing › Purchase services › <b>SharePoint Embedded</b></div>
+        <h1>Set up pay-as-you-go billing for SharePoint Embedded</h1>
+        <div class="warnbar">⚠ <b>Post-installation step.</b> ${APP.name} is <b>already installed</b>, but it <b>can’t be used until pay-as-you-go billing for SharePoint Embedded is set up</b> in your tenant.</div>
+        <p class="muted" style="max-width:640px">${APP.name} is a <b>direct-to-customer billed app</b>. Its container type “<b>${APP.ctName}</b>” bills storage &amp; API consumption to <b>${APP.consumer}</b>. Attach an Azure subscription to enable SharePoint Embedded pay-as-you-go billing.</p>
+        <div class="billcard">
+          <div class="field"><label>Azure subscription *</label>
+            <input class="inp" value="Contoso-Energy-Production  ·  f65f082d-a073-4451-…"></div>
+          <div class="field"><label>Resource group *</label>
+            <input class="inp" value="rg-sharepoint-embedded"></div>
+          <div class="field"><label>Region</label>
+            <input class="inp" value="East US"></div>
+          <div class="infobox">You’re billed only for what ${APP.name} consumes. You can change or detach this subscription later in Billing → Your products.</div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:12px;align-items:center">
+          <button class="btn primary" onclick="setBilling(true)">Set up billing</button>
+          <button class="btn" onclick="setBilling(false)">Skip for now</button>
+          <span class="muted" style="font-size:12px">Skipping keeps the app installed but unusable until billing is enabled.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>`;
+}
+
+function doneScreen(){
+  const p = isPass();
+  const blocked = p && !billingSet;
+  const billingRecap = p
+    ? (billingSet
+        ? `<p style="color:var(--ok)"><b>Billing:</b> pay-as-you-go for SharePoint Embedded is <b>enabled</b> on Contoso’s Azure subscription — the app is live.</p>`
+        : `<p style="color:#b06a00"><b>Billing:</b> pay-as-you-go is <b>not set up</b>. DocuFlow is installed but <b>can’t be used</b> until an admin enables billing.</p>`)
+    : `<p style="color:var(--ok)"><b>Billing:</b> handled by the developer (owner org) — Contoso had <b>no billing step</b>.</p>`;
+  const status = blocked ? "Installed · billing required" : "Active";
+  const banner = blocked
+    ? `<div class="warnbar">⚠ <b>${APP.name} is installed but not yet usable.</b> This direct-to-customer billed app needs pay-as-you-go billing for SharePoint Embedded.
+         <div style="margin-top:10px"><button class="btn primary" onclick="goBilling()">Set up billing now</button></div></div>`
+    : `<div class="okbar">✔ <b>${APP.name} is installed and ready to use at ${APP.consumer}.</b></div>`;
+  return `<div class="content center" style="padding:40px 26px">
+    <div class="doneic" style="${blocked?'background:#d98a00':''}">${blocked?'!':'✓'}</div>
+    <h1 style="text-align:center">${APP.name} is installed at ${APP.consumer}</h1>
+    <p class="muted">From ISV registration to enterprise installation — all the way through Microsoft Marketplace + Integrated apps.</p>
+    ${banner}
+    <div class="recap" style="text-align:left;margin-top:22px">
+      <p><b>1 · Register (owning tenant).</b> Fabrikam created the SPE app in the SharePoint admin center, chose <b>${billingTypeLabel()} billing</b> (${p?'direct-to-customer':'standard'}), and got an Entra app ID + SPE app ID and the container type “${APP.ctName}”.</p>
+      <p><b>2 · List.</b> Fabrikam published a SaaS offer in Partner Center, linking the same Entra App ID and enabling Integrated apps deployment.</p>
+      <p><b>3 · Discover &amp; install (consuming tenant).</b> A ${APP.consumer} SharePoint Embedded Administrator found DocuFlow in Marketplace, clicked Get it now, and deployed it via Integrated apps — granting consent and <b>registering the container type</b> in one flow.${p?` The app then appeared in Integrated apps with <b>“Action required — set up billing,”</b> and the admin set up <b>pay-as-you-go billing</b> in the Microsoft 365 admin center as a <b>post-installation</b> step.`:''}</p>
+      ${billingRecap}
+      <p class="muted" style="margin-top:6px">Status in SharePoint admin center → Apps → <b>Installed apps</b>: Publisher: External org · Billing: ${billingTypeLabel()} · Status: <b>${status}</b>.</p>
+    </div>
+    <div style="margin-top:22px"><button class="btn primary" onclick="restart()">↺ Restart prototype</button></div>
+  </div>`;
+}
+
+function doneNote(){
+  const p = isPass();
+  if(p && !billingSet){
+    return noteCard("tag:Action required","Installed — billing not set up",
+      `<div class="card amber"><b>${APP.name} is installed at ${APP.consumer}</b> but <b>can’t be used yet.</b> As a direct-to-customer billed app it needs <b>pay-as-you-go billing</b> for SharePoint Embedded.</div>
+       <div class="card">Billing isn’t mandatory to install, so the admin can return any time via <b>Set up billing now</b>.</div>`);
+  }
+  if(p){
+    return noteCard("tag:Complete","From registration to installation",
+      `<div class="card green"><b>${APP.name} is live at ${APP.consumer}.</b> Container type registered and <b>pay-as-you-go billing enabled</b> — the direct-to-customer app is fully usable.</div>
+       <div class="card"><b>The same listing scales</b> to every enterprise — each onboards through this identical Marketplace + Integrated apps path.</div>`);
+  }
+  return noteCard("tag:Complete","From registration to installation",
+    `<div class="card green"><b>${APP.name} is live at ${APP.consumer}.</b> As a <b>standard app</b> the developer is billed, so the consuming admin had <b>no billing step</b> — install finished in one flow.</div>
+     <div class="card"><b>The same listing scales</b> to every enterprise — each onboards through this identical Marketplace + Integrated apps path.</div>`);
+}
+
+/* ===================== notes helper ===================== */
+function noteCard(tagSpec, sub, html){
+  const tag = tagSpec.startsWith("tag:") ? `<span class="tag">${tagSpec.slice(4)}</span>` : "";
+  return `${tag}<h3>${sub}</h3><div class="sub">Step <span id="ncount"></span></div>${html}`;
+}
+
+/* ===================== engine ===================== */
+let MODE = 'passthrough';   /* 'passthrough' = Direct-to-customer billed · 'standard' = owner/developer billed */
+let billingSet = false;     /* pass-through only: has the consuming admin enabled pay-as-you-go billing */
+let BILLING_INDEX = -1;
+const isPass = ()=> MODE==='passthrough';
+const billingTypeLabel = ()=> isPass() ? 'User org' : 'Owner org';
+let cur = 0;
+let SCREENS = buildScreens();
+
+function adv(){ go(cur+1); }
+function restart(){ billingSet = false; go(0); }
+function setBilling(v){ billingSet = v; adv(); }
+function goBilling(){ SCREENS = buildScreens(); if(BILLING_INDEX >= 0) go(BILLING_INDEX); }
+function setMode(m){ if(MODE===m) return; MODE = m; billingSet = false; cur = 0; render(); }
+
+function go(i){ SCREENS = buildScreens(); cur = Math.max(0, Math.min(SCREENS.length-1, i)); render(); }
+function render(){
+  SCREENS = buildScreens();
+  cur = Math.max(0, Math.min(SCREENS.length-1, cur));
+  const s = SCREENS[cur];
+  document.getElementById('url').innerHTML = s.url;
+  document.getElementById('screen').innerHTML = s.body;
+  document.getElementById('notes').innerHTML = s.note;
+  const nc = document.getElementById('ncount'); if(nc) nc.textContent = `${cur+1} of ${SCREENS.length}`;
+  document.getElementById('bar').style.width = ((cur+1)/SCREENS.length*100)+'%';
+  document.getElementById('counter').textContent = `Step ${cur+1} / ${SCREENS.length}`;
+  document.getElementById('back').disabled = cur===0;
+  const nx = document.getElementById('next');
+  nx.textContent = cur===SCREENS.length-1 ? "↺ Restart" : (s.cta || "Next →");
+
+  // mode switch active state
+  document.querySelectorAll('#modeswitch button').forEach(b=> b.classList.toggle('on', b.dataset.m===MODE));
+
+  // phases
+  document.getElementById('phases').innerHTML = PHASE_LABELS.map((p,idx)=>{
+    const ph = idx+1;
+    const cls = s.phase===ph ? "active" : (s.phase>ph ? "done":"");
+    return `<span class="pchip ${cls}">${p}</span>`;
+  }).join("");
+
+  // rail
+  document.getElementById('rail').innerHTML = railHTML();
+}
+function railHTML(){
+  let html="", lastPhase=0;
+  SCREENS.forEach((s,i)=>{
+    if(s.phase!==lastPhase){ html+=`<div class="grp">${PHASE_LABELS[s.phase-1]}</div>`; lastPhase=s.phase; }
+    const cls = i===cur?"active":(i<cur?"done":"");
+    const mark = i<cur?"✓":(i+1);
+    html+=`<div class="step ${cls}" onclick="go(${i})"><span class="dot">${mark}</span><span class="lbl">${s.rail}</span></div>`;
+  });
+  return html;
+}
+document.querySelectorAll('#modeswitch button').forEach(b=> b.onclick = ()=> setMode(b.dataset.m));
+document.getElementById('next').onclick = ()=> cur===SCREENS.length-1 ? restart() : adv();
+document.getElementById('back').onclick = ()=> go(cur-1);
+document.getElementById('restart').onclick = ()=> restart();
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') go(cur+1);
+  if(e.key==='ArrowLeft') go(cur-1);
+});
+render();
+</script>
+</body>
+</html>
