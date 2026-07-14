@@ -134,6 +134,30 @@
   .infobox{background:#f3f4f6;border-radius:6px;padding:9px 11px;font-size:11.5px;color:#444;margin:8px 0}
   .panel .acts{position:sticky;bottom:-20px;background:#fff;padding:14px 0 2px;margin-top:14px;border-top:1px solid var(--line);display:flex;gap:10px}
 
+  /* reference-style detail panel */
+  .panel.wide{width:640px;max-width:94%;padding:0;overflow:hidden;display:flex;flex-direction:column}
+  .dphead{flex:0 0 auto;padding:18px 22px 0}
+  .dprow1{display:flex;align-items:center;gap:12px}
+  .dpic{width:42px;height:42px;border-radius:10px;background:var(--spe);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:0 0 auto}
+  .dphead h2{margin:0;font-size:19px;display:flex;align-items:center;gap:9px}
+  .dpsub{font-size:12.5px;color:var(--grey);margin-top:3px}
+  .dpclose{margin-left:auto;color:#888;cursor:pointer;font-size:16px}
+  .ptabs{display:flex;gap:18px;border-bottom:1px solid var(--line);margin-top:14px;padding:0 22px;overflow-x:auto}
+  .ptabs .pt{padding:9px 2px;font-size:13px;color:#555;border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer}
+  .ptabs .pt.on{color:var(--spe);border-color:var(--spe);font-weight:600}
+  .dpbody{flex:1 1 auto;overflow:auto;padding:16px 22px}
+  .dsect{margin-bottom:22px}
+  .dsect h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--grey);margin:0 0 10px}
+  .drow{display:flex;gap:10px;margin:9px 0;font-size:13px;flex-wrap:wrap}
+  .drow .dk{width:190px;color:var(--grey);flex:0 0 auto}
+  .drow .dv{color:var(--ink);font-weight:500}
+  .mono{font-family:Consolas,monospace;font-size:12px}
+  .dbanner{border-radius:7px;padding:11px 13px;font-size:12.5px;line-height:1.5;margin-bottom:16px;border:1px solid #d9e8f6;border-left:4px solid var(--spe);background:#f3f8fd}
+  .dbanner.green{background:#eef9f1;border-color:#cde9d6;border-left-color:var(--ok)}
+  .dbanner.amber{background:#fff8ec;border-color:#f3e2c2;border-left-color:#d98a00}
+  .dpfoot{flex:0 0 auto;border-top:1px solid var(--line);padding:12px 22px;display:flex;gap:10px;align-items:center}
+  .dpfoot .sp{flex:1 1 auto}
+
   /* marketplace surface */
   .mkbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid #eee;font-size:13px}
   .mkbar .mk{font-weight:600}.mkbar .sep{color:#bbb}
@@ -323,7 +347,7 @@ const S = [
 
 /* 4 */ {phase:1, rail:"App detail — hand off to developers", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
-  body: spacApps(false, appDetailPanel('dev'), {lifecycle:'dev'}),
+  body: spacApps(false, appDetailPanel('dev','email'), {lifecycle:'dev'}),
   note: noteCard("tag:Owning tenant — Fabrikam","Detail panel · In development",
     `<div class="card"><b>Clicking the app opens its detail panel</b> — the developer-admin surface for this owned app.</div>
      <div class="card"><b>First job of the developer admin:</b> hand the app details to the owners and other developers. Use <b>“Email app details to owners”</b> to send the Entra app ID, SPE app ID, container type and billing model.</div>`),
@@ -340,7 +364,7 @@ const S = [
 
 /* 6 */ {phase:1, rail:"Develop & configure — mark Ready", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
-  body: spacApps(false, appDetailPanel('dev'), {lifecycle:'dev'}),
+  body: spacApps(false, appDetailPanel('dev','ready'), {lifecycle:'dev'}),
   note: noteCard("tag:Owning tenant — Fabrikam","Build, then mark Ready",
     `<div class="card"><b>The developers build and configure the app.</b> While it is “In development”, it is not yet eligible to publish.</div>
      <div class="card amber"><b>Eligibility is based on a standard (non-trial) container type</b>, <i>not</i> on the app being multi-geo. Multi-geo is just a property of standard container types (region selection), not the qualifier.</div>
@@ -514,7 +538,7 @@ function adminShell(sel, inner, panel){
       </div>
       <div class="content">${inner}</div>
     </div>
-    ${panel?`<div class="scrim"></div><div class="panel">${panel}</div>`:""}
+    ${panel?`<div class="scrim"></div><div class="panel ${panel.indexOf('<!--wide-->')>-1?'wide':''}">${panel}</div>`:""}
   </div>
   </div>`;
 }
@@ -526,35 +550,55 @@ function spacApps(withScrim, panel, opts){
   const clickApp = opts.clickApp;
   const detail = panel && panel.indexOf("Entra app ID")>-1;
   const showDocu = detail || !!lifecycle;
-  const lifeLabel = lifecycle==='ready' ? 'Ready to publish' : 'In development';
+  const lifeLabel = lifecycle==='ready' ? 'Ready' : 'In development';
   const badge = (label)=>{
     if(label==='In development') return `<span class="warnpill">In development</span>`;
-    if(label==='Ready to publish') return `<span class="pill">Ready to publish</span>`;
-    return `<span style="color:#888;font-size:12px;font-weight:600">${label}</span>`;
+    if(label==='Ready') return `<span class="pill">Ready</span>`;
+    return `<span class="pill">${label}</span>`;
   };
-  const rows = [
-    ["ABC","Your org","User org","Published"],
-    ["XYZ","Your org","Owner org","Published"],
-    ["Application_SPE_0024","External org","User org","Published"],
-    ["Northwind Vault","External org","Owner org","Published"]
+  const ownBadge = (o)=> o==='you'
+    ? '<span class="apptag std" style="margin:0">Your org</span>'
+    : '<span class="apptag pass" style="margin:0">External org</span>';
+  /* your-org apps are owned AND consumed; external apps are consumed only */
+  const sample = [
+    {name:"ABC Vault",            owner:"you", billing:"User org",  status:"Active"},
+    {name:"XYZ Records",          owner:"you", billing:"Owner org", status:"Active"},
+    {name:"Application_SPE_0024",  owner:"ext", billing:"User org",  status:"Active", pub:"Contoso Ltd."},
+    {name:"Northwind Vault",      owner:"ext", billing:"Owner org", status:"Active", pub:"Northwind Ltd."}
   ];
-  if(showDocu){ rows.unshift([APP.name,"Your org",billingTypeLabel(),lifeLabel,true]); }
+  const docu = {name:APP.name, owner:"you", billing:billingTypeLabel(), status:lifeLabel, pub:APP.isv, hl:true};
+  const owned = sample.filter(a=>a.owner==="you").concat(showDocu?[docu]:[]);
+  const installed = sample.concat(showDocu?[docu]:[]);
+  const rows = listTab==='installed' ? installed : owned;
+  const rowHtml = (a)=>{
+    const clickable = a.hl && clickApp;
+    const attr = clickable ? 'onclick="adv()" style="cursor:pointer;background:#eef5fc"'
+               : (a.hl ? 'style="background:#f3f8fd"' : '');
+    const nameCell = `<td><b>${a.name}</b>${a.pub&&a.owner==="ext"?`<div class="muted" style="font-size:11px">${a.pub}</div>`:""}</td>`;
+    if(listTab==='installed'){
+      return `<tr ${attr}>${nameCell}<td>${ownBadge(a.owner)}</td><td>${a.billing}</td><td>${badge(a.status)}</td></tr>`;
+    }
+    return `<tr ${attr}>${nameCell}<td>Your org</td><td>${a.billing}</td>
+      <td><span class="av">${a.name[0]}</span></td><td>${badge(a.status)}</td></tr>`;
+  };
+  const header = listTab==='installed'
+    ? `<tr><th>App name</th><th>Owner</th><th>Billing type</th><th>Status</th></tr>`
+    : `<tr><th>App name</th><th>Publisher</th><th>Billing type</th><th>Owners</th><th>Status</th></tr>`;
+  const surfaceNote = listTab==='installed'
+    ? `<b>Installed apps</b> is the consuming-tenant surface. <b>Your org</b> apps are owned <i>and</i> consumed here; <b>External org</b> apps are consumed only.`
+    : `<b>Owned apps</b> lists the SharePoint Embedded apps your org created, regardless of installation status.`;
   const inner = `
     <h1>Apps</h1>
     <div class="muted">Install, set up, and manage your SharePoint Embedded apps. <a class="lnk">Learn more</a></div>
-    <div class="tabs"><div class="t">Installed apps</div><div class="t on">Owned apps</div></div>
-    <div class="muted" style="margin-top:10px">SharePoint Embedded apps created by your org, regardless of installation status.</div>
+    <div class="tabs">
+      <div class="t ${listTab==='installed'?'on':''}" onclick="setListTab('installed')">Installed apps</div>
+      <div class="t ${listTab==='owned'?'on':''}" onclick="setListTab('owned')">Owned apps</div>
+    </div>
+    <div class="muted" style="margin-top:10px">${surfaceNote}</div>
     <div class="createbtn" ${createTarget?`onclick="adv()"`:""}>＋ Create app</div>
     <table class="grid">
-      <tr><th>App name</th><th>Publisher</th><th>Billing type</th><th>Owners</th><th>Status</th></tr>
-      ${rows.map(r=>{
-        const hl = r[4];
-        const rowAttr = (hl && clickApp) ? 'onclick="adv()" style="cursor:pointer;background:#eef5fc"'
-                       : (hl ? 'style="background:#f3f8fd"' : '');
-        return `<tr ${rowAttr}>
-        <td><b>${r[0]}</b>${hl&&clickApp?' &nbsp;<span class="lnk">Open ›</span>':''}</td><td>${r[1]}</td><td>${r[2]}</td>
-        <td><span class="av">${r[0][0]}</span></td><td>${badge(r[3])}</td></tr>`;
-      }).join("")}
+      ${header}
+      ${rows.map(rowHtml).join("")}
     </table>`;
   return adminShell('apps', inner, panel);
 }
@@ -593,52 +637,78 @@ function createPanelBottom(){
    <div class="field"><label>▸ Advanced settings</label></div>
    <div class="acts"><button class="btn primary" onclick="adv()">Create app</button><button class="btn">Close</button></div>`;
 }
-function appDetailPanel(stage){
+function appDetailPanel(stage, action){
   const p = isPass();
-  stage = stage || 'reg';
+  stage = stage || 'dev';
   const ready = stage==='ready';
-  const dev = stage==='dev';
   const statusPill = ready ? `<span class="pill">Ready</span>` : `<span class="warnpill">In development</span>`;
-  const emailBtn = stage==='reg'
-    ? `<button class="btn primary" onclick="adv()">✉ Email app details to owners</button>`
-    : `<button class="btn">✉ Email app details to owners</button>`;
-  let publishSection;
-  if(ready){
-    publishSection = `<div class="field"><label>Publish to Microsoft Marketplace</label>
-         <div class="okbar"><b>All prerequisites met — this app is eligible to publish.</b></div>
+  const drow = (k,v)=>`<div class="drow"><div class="dk">${k}</div><div class="dv">${v}</div></div>`;
+  const tabs = ["Overview","Configuration","Permissions","Billing","Lifecycle"];
+
+  const banner = ready
+    ? `<div class="dbanner green"><b>Ready to publish.</b> All prerequisites are met — you can list this app on Microsoft Marketplace.</div>`
+    : `<div class="dbanner amber"><b>In development.</b> Hand the app to your developers, then mark it <b>Ready</b> to make it eligible for Marketplace.</div>`;
+
+  const lifecycleSection = ready
+    ? `<div class="dsect"><h3>Publish to Marketplace</h3>
          <ul class="prereq">
            <li><b>✔</b> Multi-tenant Entra app registered</li>
-           <li><b>✔</b> Standard (non-trial) container type defined (${APP.ctName})</li>
+           <li><b>✔</b> Standard (non-trial) container type defined</li>
            <li><b>✔</b> Billing model set (${billingTypeLabel()})${p?'':' + Azure subscription connected'}</li>
            <li><b>✔</b> Publisher verified</li>
-           <li><b>✔</b> App developed & marked <b>Ready</b></li>
+           <li><b>✔</b> App developed &amp; marked <b>Ready</b></li>
          </ul>
-         <div class="infobox"><b>Who can publish?</b> Marking Ready → <b>SharePoint Embedded Administrator</b> (no Global Admin needed). Creating the listing → <b>Partner Center</b> role (<b>Publisher / Developer</b>).</div></div>
-       <div class="acts"><button class="btn primary" onclick="adv()">Publish to Marketplace</button></div>`;
-  } else if(dev){
-    publishSection = `<div class="field"><label>Lifecycle</label>
-         <div class="kv"><b>State:</b> <span class="warnpill">In development</span></div>
-         <div class="infobox">Mark the app <b>Ready</b> once development and configuration are complete. This makes it eligible to publish to Marketplace (requires a <b>standard, non-trial container type</b> — not multi-geo).</div></div>
-       <div class="acts"><button class="btn primary" onclick="adv()">Mark app as Ready</button></div>`;
+         <div class="infobox"><b>Who can publish?</b> Marking Ready → <b>SharePoint Embedded Administrator</b> (no Global Admin). Creating the listing → <b>Partner Center</b> role (Publisher / Developer).</div></div>`
+    : `<div class="dsect"><h3>Lifecycle</h3>
+         ${drow("State",`<span class="warnpill">In development</span>`)}
+         <div class="infobox">Mark the app <b>Ready</b> once development and configuration are complete. Eligibility to publish requires a <b>standard, non-trial container type</b> — not multi-geo.</div></div>`;
+
+  let footAction;
+  if(ready){
+    footAction = `<button class="btn primary" onclick="adv()">Publish to Marketplace</button>`;
+  } else if(action==='ready'){
+    footAction = `<button class="btn" onclick="adv()">✉ Email app details to owners</button>
+                  <button class="btn primary" onclick="adv()">Mark app as Ready</button>`;
   } else {
-    /* reg — post-create detail panel: no Locked section, no Mark Ready. Just hand-off. */
-    publishSection = `<div class="acts">${emailBtn}</div>`;
+    footAction = `<button class="btn primary" onclick="adv()">✉ Email app details to owners</button>
+                  <button class="btn">Mark app as Ready</button>`;
   }
-  return `<h2>${APP.name} &nbsp;${statusPill}</h2>
-   <div class="ph">Owned app · Publisher: Your org · <b>${p?'Direct-to-customer billed':'Standard'}</b> app</div>
-   <div class="field"><label>Entra app ID</label><div class="kv">${APP.entraId} &nbsp;<a class="lnk">Copy ID</a></div></div>
-   <div class="field"><label>SharePoint Embedded app ID</label><div class="kv">${APP.speId} &nbsp;<a class="lnk">Copy ID</a></div></div>
-   <div class="field"><label>Container type</label>
-     <div class="kv"><b>${APP.ctName}</b> <span class="apptag std">Standard</span></div>
-     <div class="kv" style="color:#888">${APP.ctId}</div></div>
-   <div class="field"><label>Owners &amp; developers</label>
-     <div class="kv">Alex Admin (owner) · +2 developers</div>
-     <div class="infobox">Hand off the app so owners and other developers can build on it — email them the Entra app ID, SPE app ID, container type and billing model.</div>
-     ${stage==='reg' ? '' : emailBtn}</div>
-   <div class="field"><label>Billing</label>
-     <div class="kv"><b>Billing type:</b> ${billingTypeLabel()} ${p?'(direct-to-customer)':'(standard)'}</div>
-     <div class="kv"><b>Azure subscription:</b> ${p?'— (set up by the using org)':'Fabrikam-Production (developer-owned)'}</div></div>
-   ${publishSection}`;
+
+  return `<!--wide-->
+   <div class="dphead">
+     <div class="dprow1">
+       <div class="dpic">DF</div>
+       <div><h2>${APP.name} ${statusPill}</h2>
+         <div class="dpsub">Owned app · ${ownBadgeInline('you')} · Developer admin · <b>${p?'Direct-to-customer billed':'Standard'}</b></div></div>
+       <span class="dpclose" onclick="go(cur-1)">✕</span>
+     </div>
+     <div class="ptabs">${tabs.map((t,i)=>`<div class="pt ${i===0?'on':''}">${t}</div>`).join("")}</div>
+   </div>
+   <div class="dpbody">
+     ${banner}
+     <div class="dsect"><h3>Identity</h3>
+       ${drow("Persona in this view",`<b>Developer admin</b>`)}
+       ${drow("Entra app ID",`<span class="mono">${APP.entraId}</span> &nbsp;<a class="lnk">Copy</a>`)}
+       ${drow("SharePoint Embedded app ID",`<span class="mono">${APP.speId}</span> &nbsp;<a class="lnk">Copy</a>`)}
+       ${drow("Container type",`${APP.ctName} <span class="apptag std">Standard</span>`)}
+       ${drow("Container type ID",`<span class="mono">${APP.ctId}</span>`)}
+       ${drow("Owner",`Your org (this tenant created the app)`)}
+       ${drow("Billing type",`${billingTypeLabel()} ${p?'(direct-to-customer)':'(standard)'}`)}
+       ${drow("Lifecycle status", ready?`<b>Ready</b>`:`<b>In development</b>`)}
+     </div>
+     <div class="dsect"><h3>Owners &amp; developers</h3>
+       ${drow("Owners",`Alex Admin`)}
+       ${drow("Developers",`+2 developers`)}
+       <div class="infobox">Hand off the app so owners and other developers can build on it — email them the Entra app ID, SPE app ID, container type and billing model.</div>
+     </div>
+     ${lifecycleSection}
+   </div>
+   <div class="dpfoot">${footAction}<div class="sp"></div><button class="btn" onclick="go(cur-1)">Close</button></div>`;
+}
+function ownBadgeInline(o){
+  return o==='you'
+    ? '<span class="apptag std" style="margin:0">Your org</span>'
+    : '<span class="apptag pass" style="margin:0">External org</span>';
 }
 function permissionCheck(){
   return `<h2>Publish to Marketplace</h2>
@@ -977,6 +1047,7 @@ function noteCard(tagSpec, sub, html){
 /* ===================== engine ===================== */
 let MODE = 'passthrough';   /* 'passthrough' = Direct-to-customer billed · 'standard' = owner/developer billed */
 let billingSet = false;     /* pass-through only: has the consuming admin enabled pay-as-you-go billing */
+let listTab = 'owned';      /* Apps list active tab: 'owned' | 'installed' */
 let BILLING_INDEX = -1;
 const isPass = ()=> MODE==='passthrough';
 const billingTypeLabel = ()=> isPass() ? 'User org' : 'Owner org';
@@ -984,10 +1055,11 @@ let cur = 0;
 let SCREENS = buildScreens();
 
 function adv(){ go(cur+1); }
-function restart(){ billingSet = false; go(0); }
+function restart(){ billingSet = false; listTab = 'owned'; go(0); }
 function setBilling(v){ billingSet = v; adv(); }
+function setListTab(t){ listTab = t; render(); }
 function goBilling(){ SCREENS = buildScreens(); if(BILLING_INDEX >= 0) go(BILLING_INDEX); }
-function setMode(m){ if(MODE===m) return; MODE = m; billingSet = false; cur = 0; render(); }
+function setMode(m){ if(MODE===m) return; MODE = m; billingSet = false; listTab = 'owned'; cur = 0; render(); }
 
 function go(i){ SCREENS = buildScreens(); cur = Math.max(0, Math.min(SCREENS.length-1, i)); render(); }
 function render(){
