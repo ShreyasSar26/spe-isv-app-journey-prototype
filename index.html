@@ -284,7 +284,7 @@ const pass = isPass();
 const S = [
 /* 0 */ {phase:1, rail:"SharePoint admin center · Owned apps", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; SharePoint Embedded ›  Apps`,
-  body: spacApps(false, null, 1),
+  body: spacApps(false, null, {createTarget:true}),
   note: noteCard("tag:Owning tenant — Fabrikam","Where the ISV starts",
     `<div class="card"><b>The ISV registers its app in its own (owning) tenant.</b> In the SharePoint admin center, <b>SharePoint Embedded → Apps → Owned apps</b> lists every SPE app your org created, regardless of where it is installed.</div>
      <div class="card"><b>Next action:</b> click <b>+ Create app</b> to register the DocuFlow application and define how it is billed.</div>`),
@@ -312,43 +312,68 @@ const S = [
      <div class="card green"><b>Click “Create app”.</b> This provisions the Entra app + SharePoint Embedded app and assigns the owners.</div>`),
   cta:"Click “Create app”"},
 
-/* 3 */ {phase:1, rail:"App registered — hand off to developers", tab:"SharePoint admin center",
+/* 3 */ {phase:1, rail:"App created — appears in Apps list", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; SharePoint Embedded › Apps`,
+  body: spacApps(false, null, {lifecycle:'dev', clickApp:true}),
+  note: noteCard("tag:Owning tenant — Fabrikam","Created ✔ · panel closed",
+    `<div class="card green"><b>${APP.name} is created.</b> The create side-panel has <b>closed</b> and the app now appears in the <b>Apps list</b>.</div>
+     <div class="card"><b>New “Status” column</b> tracks the app’s lifecycle. It starts as <b>“In development”</b> — it has an Entra app ID and a SharePoint Embedded app ID, but it is <i>not</i> on Marketplace yet.</div>
+     <div class="card green"><b>Click the ${APP.name} row</b> to open its detail panel.</div>`),
+  cta:"Open DocuFlow"},
+
+/* 4 */ {phase:1, rail:"App detail — hand off to developers", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
-  body: spacApps(false, appDetailPanel('reg')),
-  note: noteCard("tag:Owning tenant — Fabrikam","Registered ✔ · In development",
-    `<div class="card green"><b>${APP.name} is registered.</b> It now has an Entra app ID and a SharePoint Embedded app ID, and starts life in an <b>“In development”</b> state — it is <i>not</i> on Marketplace yet.</div>
-     <div class="card"><b>First job of the developer admin:</b> hand the app details to the owners and other developers who will build on it. Use <b>“Email app details to owners”</b> in the detail panel to send the Entra app ID, SPE app ID and container type.</div>
-     <div class="card"><b>Behind the scenes</b>, the ISV also defines a <b>standard container type</b> (“${APP.ctName}”) — the unit that binds the app to its storage, access control and billing, and the identifier that later makes the app eligible for Marketplace.</div>`),
+  body: spacApps(false, appDetailPanel('dev'), {lifecycle:'dev'}),
+  note: noteCard("tag:Owning tenant — Fabrikam","Detail panel · In development",
+    `<div class="card"><b>Clicking the app opens its detail panel</b> — the developer-admin surface for this owned app.</div>
+     <div class="card"><b>First job of the developer admin:</b> hand the app details to the owners and other developers. Use <b>“Email app details to owners”</b> to send the Entra app ID, SPE app ID, container type and billing model.</div>`),
   cta:"Email app details to owners"},
 
-/* 3b */ {phase:1, rail:"Email app details to owners & developers", tab:"SharePoint admin center",
+/* 5 */ {phase:1, rail:"Email app details to owners & developers", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name} › Notify`,
-  body: spacApps(true, emailPanel()),
+  body: spacApps(true, emailPanel(), {lifecycle:'dev'}),
   note: noteCard("tag:Owning tenant — Fabrikam","Notify owners & developers",
-    `<div class="card"><b>The developer admin emails the app details</b> to the owners and any other developers so they can start building against the registered app.</div>
+    `<div class="card"><b>The developer admin emails the app details</b> so owners and other developers can start building against the registered app.</div>
      <div class="kv"><b>Included:</b> Entra app ID, SPE app ID, container type &amp; billing model</div>
      <div class="card green"><b>Click “Send”.</b> The team can now develop and configure the app.</div>`),
   cta:"Send & continue — develop the app"},
 
-/* 3c */ {phase:1, rail:"Develop & configure — mark Ready", tab:"SharePoint admin center",
+/* 6 */ {phase:1, rail:"Develop & configure — mark Ready", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
-  body: spacApps(false, appDetailPanel('dev')),
+  body: spacApps(false, appDetailPanel('dev'), {lifecycle:'dev'}),
   note: noteCard("tag:Owning tenant — Fabrikam","Build, then mark Ready",
-    `<div class="card"><b>The developers build and configure the app.</b> While it is “In development”, the <b>Publish to Marketplace</b> action stays <b>locked</b>.</div>
-     <div class="card amber"><b>Publish is gated on the app being marked “Ready”</b> — and eligibility is based on a <b>standard (non-trial) container type</b>, <i>not</i> on the app being multi-geo. Multi-geo is just a property of standard container types (region selection), not the qualifier.</div>
+    `<div class="card"><b>The developers build and configure the app.</b> While it is “In development”, it is not yet eligible to publish.</div>
+     <div class="card amber"><b>Eligibility is based on a standard (non-trial) container type</b>, <i>not</i> on the app being multi-geo. Multi-geo is just a property of standard container types (region selection), not the qualifier.</div>
      <div class="card green"><b>Click “Mark app as Ready”</b> once development is complete.</div>`),
   cta:"Mark app as Ready"},
 
-/* 3d */ {phase:1, rail:"App Ready — eligible for Marketplace", tab:"SharePoint admin center",
+/* 7 */ {phase:1, rail:"App marked Ready — status updates in list", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; SharePoint Embedded › Apps`,
+  body: spacApps(false, null, {lifecycle:'ready', clickApp:true}),
+  note: noteCard("tag:Owning tenant — Fabrikam","Ready to publish ✔",
+    `<div class="card green"><b>${APP.name}’s status is now “Ready to publish”</b> in the Apps list.</div>
+     <div class="card"><b>Publishing is done from the app’s detail panel</b>, not from the create experience. <b>Click the ${APP.name} row</b> to open it and publish.</div>`),
+  cta:"Open DocuFlow"},
+
+/* 8 */ {phase:1, rail:"App detail — Publish to Marketplace", tab:"SharePoint admin center",
   url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name}`,
-  body: spacApps(false, appDetailPanel('ready')),
-  note: noteCard("tag:Owning tenant — Fabrikam","Ready ✔ — who can publish?",
-    `<div class="card green"><b>${APP.name} is now “Ready”.</b> All prerequisites are met, so <b>Publish to Marketplace</b> is unlocked.</div>
-     <div class="card"><b>Who can publish?</b> Registering the app and marking it Ready can be done by a <b>SharePoint Embedded Administrator</b> (a Global Administrator is not required). But the listing itself is created in <b>Partner Center</b>, which requires a <b>Partner Center</b> account role (<b>Publisher / Developer / Account admin</b>) — a tenant admin role alone does not grant this.</div>
-     <div class="card"><b>Next:</b> the ISV moves to Partner Center to create and submit the offer.</div>`),
+  body: spacApps(false, appDetailPanel('ready'), {lifecycle:'ready'}),
+  note: noteCard("tag:Owning tenant — Fabrikam","Publish from the detail panel",
+    `<div class="card green"><b>The detail panel now shows a “Publish to Marketplace” action</b> because the app is Ready.</div>
+     <div class="card"><b>Who can publish?</b> A <b>SharePoint Embedded Administrator</b> can register and mark the app Ready (no Global Admin needed). Creating the listing happens in <b>Partner Center</b>, which needs a <b>Partner Center</b> role.</div>
+     <div class="card green"><b>Click “Publish to Marketplace”.</b> A permission check runs before redirecting to Partner Center.</div>`),
   cta:"Publish to Marketplace"},
 
-/* 4 */ {phase:2, rail:"Partner Center — list on Marketplace", tab:"Microsoft Partner Center",
+/* 9 */ {phase:1, rail:"Permission check before Partner Center", tab:"SharePoint admin center",
+  url:`<b>admin.microsoft.com</b>/sharepoint &nbsp;›&nbsp; Apps › ${APP.name} › Publish`,
+  body: spacApps(true, permissionCheck(), {lifecycle:'ready'}),
+  note: noteCard("tag:Owning tenant — Fabrikam","Verify permissions",
+    `<div class="card"><b>Before redirecting to Partner Center</b>, SharePoint checks that the admin holds the roles needed to publish.</div>
+     <div class="card amber"><b>A tenant admin role alone is not enough</b> — creating a Marketplace offer requires a <b>Partner Center</b> role (Publisher / Developer / Account admin). Only if the check passes does the redirect happen.</div>
+     <div class="card green"><b>Check passes → click “Continue to Partner Center”.</b></div>`),
+  cta:"Continue to Partner Center ↗"},
+
+/* 10 */ {phase:2, rail:"Partner Center — list on Marketplace", tab:"Microsoft Partner Center",
   url:`<b>partner.microsoft.com</b> &nbsp;›&nbsp; Marketplace offers › New SaaS offer`,
   body: partnerCenter(),
   note: noteCard("tag:Owning tenant — Fabrikam","Publish the offer",
@@ -494,27 +519,42 @@ function adminShell(sel, inner, panel){
   </div>`;
 }
 
-function spacApps(withScrim, panel, createTarget){
-  const rows = [
-    ["ABC","Your org","User org","Active"],
-    ["XYZ","Your org","Owner org","Active"],
-    ["Application_SPE_0024","External org","User org","Active"],
-    ["Northwind Vault","External org","Owner org","Active"]
-  ];
-  const isNew = panel && panel.indexOf("Create app")>-1;
+function spacApps(withScrim, panel, opts){
+  opts = opts || {};
+  const createTarget = opts.createTarget;
+  const lifecycle = opts.lifecycle || null;   /* 'dev' | 'ready' */
+  const clickApp = opts.clickApp;
   const detail = panel && panel.indexOf("Entra app ID")>-1;
-  if(detail){ rows.unshift([APP.name,"Your org",billingTypeLabel(),"Active",true]); }
+  const showDocu = detail || !!lifecycle;
+  const lifeLabel = lifecycle==='ready' ? 'Ready to publish' : 'In development';
+  const badge = (label)=>{
+    if(label==='In development') return `<span class="warnpill">In development</span>`;
+    if(label==='Ready to publish') return `<span class="pill">Ready to publish</span>`;
+    return `<span style="color:#888;font-size:12px;font-weight:600">${label}</span>`;
+  };
+  const rows = [
+    ["ABC","Your org","User org","Published"],
+    ["XYZ","Your org","Owner org","Published"],
+    ["Application_SPE_0024","External org","User org","Published"],
+    ["Northwind Vault","External org","Owner org","Published"]
+  ];
+  if(showDocu){ rows.unshift([APP.name,"Your org",billingTypeLabel(),lifeLabel,true]); }
   const inner = `
     <h1>Apps</h1>
     <div class="muted">Install, set up, and manage your SharePoint Embedded apps. <a class="lnk">Learn more</a></div>
     <div class="tabs"><div class="t">Installed apps</div><div class="t on">Owned apps</div></div>
     <div class="muted" style="margin-top:10px">SharePoint Embedded apps created by your org, regardless of installation status.</div>
-    <div class="createbtn" ${createTarget!=null?`onclick="adv()"`:""}>＋ Create app</div>
+    <div class="createbtn" ${createTarget?`onclick="adv()"`:""}>＋ Create app</div>
     <table class="grid">
       <tr><th>App name</th><th>Publisher</th><th>Billing type</th><th>Owners</th><th>Status</th></tr>
-      ${rows.map(r=>`<tr ${r[4]?'style="background:#f3f8fd"':''}>
-        <td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td>
-        <td><span class="av">${r[0][0]}</span></td><td><span class="pill">${r[3]}</span></td></tr>`).join("")}
+      ${rows.map(r=>{
+        const hl = r[4];
+        const rowAttr = (hl && clickApp) ? 'onclick="adv()" style="cursor:pointer;background:#eef5fc"'
+                       : (hl ? 'style="background:#f3f8fd"' : '');
+        return `<tr ${rowAttr}>
+        <td><b>${r[0]}</b>${hl&&clickApp?' &nbsp;<span class="lnk">Open ›</span>':''}</td><td>${r[1]}</td><td>${r[2]}</td>
+        <td><span class="av">${r[0][0]}</span></td><td>${badge(r[3])}</td></tr>`;
+      }).join("")}
     </table>`;
   return adminShell('apps', inner, panel);
 }
@@ -599,6 +639,18 @@ function appDetailPanel(stage){
      <div class="kv"><b>Billing type:</b> ${billingTypeLabel()} ${p?'(direct-to-customer)':'(standard)'}</div>
      <div class="kv"><b>Azure subscription:</b> ${p?'— (set up by the using org)':'Fabrikam-Production (developer-owned)'}</div></div>
    ${publishSection}`;
+}
+function permissionCheck(){
+  return `<h2>Publish to Marketplace</h2>
+   <div class="ph">Before redirecting to Partner Center, we verify you hold the roles required to publish.</div>
+   <div class="okbar"><b>Permission check passed.</b> You can create the Marketplace offer.</div>
+   <ul class="prereq">
+     <li><b>✔</b> <b>SharePoint Embedded Administrator</b> — registered the app &amp; marked it Ready</li>
+     <li><b>✔</b> <b>Partner Center</b> account role: <b>Publisher</b> — can create &amp; submit offers</li>
+     <li><b>✔</b> Publisher profile verified (${APP.isv})</li>
+   </ul>
+   <div class="infobox"><b>Why this check?</b> A tenant admin role (even Global Administrator) does not, by itself, grant Partner Center publishing rights. Creating the listing requires a Partner Center role — you have one, so the redirect can proceed.</div>
+   <div class="acts"><button class="btn primary" onclick="adv()">Continue to Partner Center ↗</button><button class="btn">Cancel</button></div>`;
 }
 function emailPanel(){
   return `<h2>Notify owners &amp; developers</h2>
